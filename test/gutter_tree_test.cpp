@@ -2,7 +2,7 @@
 #include <thread>
 #include <atomic>
 #include <fstream>
-#include "../include/buffer_tree.h"
+#include "../include/gutter_tree.h"
 
 #define KB (1 << 10)
 #define MB (1 << 20)
@@ -14,10 +14,10 @@ static std::atomic<uint32_t> upd_processed;
 // queries the buffer tree and verifies that the data
 // returned makes sense
 // Should be run in a seperate thread
-void querier(BufferTree *buf_tree, int nodes) {
+void querier(GutterTree *g_tree, int nodes) {
   data_ret_t data;
   while(true) {
-    bool valid = buf_tree->get_data(data);
+    bool valid = g_tree->get_data(data);
     if (valid) {
       Node key = data.first;
       std::vector<Node> updates = data.second;
@@ -47,32 +47,32 @@ void write_configuration(uint32_t buffer_exp, uint32_t fanout, int queue_factor,
 // and no work is claimed off of the work queue
 // to work correctly num_updates must be a multiple of nodes
 void run_test(const int nodes, const int num_updates, const uint32_t buffer_exp, const uint32_t branch_factor) {
-  printf("BufferTree => Running Test: nodes=%i num_updates=%i buffer_size 2^%i branch_factor %i\n",
+  printf("GutterTree => Running Test: nodes=%i num_updates=%i buffer_size 2^%i branch_factor %i\n",
          nodes, num_updates, buffer_exp, branch_factor);
 
   write_configuration(buffer_exp, branch_factor, 8, 1); // 8 is queue_factor, 1 is page_factor
 
-  BufferTree *buf_tree = new BufferTree("./test_", nodes, 1, true);
+  GutterTree *g_tree = new GutterTree("./test_", nodes, 1, true);
   shutdown = false;
   upd_processed = 0;
-  std::thread qworker(querier, buf_tree, nodes);
+  std::thread qworker(querier, g_tree, nodes);
 
   for (int i = 0; i < num_updates; i++) {
     update_t upd;
     upd.first = i % nodes;
     upd.second = (nodes - 1) - (i % nodes);
-    buf_tree->insert(upd);
+    g_tree->insert(upd);
   }
   printf("force flush\n");
-  buf_tree->force_flush();
+  g_tree->force_flush();
   shutdown = true;
-  buf_tree->set_non_block(true); // switch to non-blocking calls in an effort to exit
+  g_tree->set_non_block(true); // switch to non-blocking calls in an effort to exit
   qworker.join();
   ASSERT_EQ(num_updates, upd_processed);
-  delete buf_tree;
+  delete g_tree;
 }
 
-TEST(BufferTree, Small) {
+TEST(GutterTree, Small) {
   const int nodes = 10;
   const int num_updates = 400;
   const int buf_exp = 12;
@@ -81,7 +81,7 @@ TEST(BufferTree, Small) {
   run_test(nodes, num_updates, buf_exp, branch);
 }
 
-TEST(BufferTree, Medium) {
+TEST(GutterTree, Medium) {
   const int nodes = 100;
   const int num_updates = 360000;
   const int buf_exp = 20;
@@ -90,7 +90,7 @@ TEST(BufferTree, Medium) {
   run_test(nodes, num_updates, buf_exp, branch);
 }
 
-TEST(BufferTree, ManyInserts) {
+TEST(GutterTree, ManyInserts) {
   const int nodes = 32;
   const int num_updates = 1000000;
   const int buf_exp = 20;
@@ -106,8 +106,8 @@ TEST(BufferTree, ManyInserts) {
 // is done. We insert a full buffer of 0 updates.
 //
 // For exampele 0 and 2, then 0 and 4, etc. 
-TEST(BufferTree, EvilInsertions) {
-  int full_root = MB/BufferTree::serial_update_size;
+TEST(GutterTree, EvilInsertions) {
+  int full_root = MB/GutterTree::serial_update_size;
   const int nodes       = 32;
   const int num_updates = 4 * full_root;
   const int buf_exp     = 20;
@@ -115,10 +115,10 @@ TEST(BufferTree, EvilInsertions) {
 
   write_configuration(buf_exp, branch, 8, 5); // 8 is queue_factor, 5 is page_factor
 
-  BufferTree *buf_tree = new BufferTree("./test_", nodes, 1, true);
+  GutterTree *g_tree = new GutterTree("./test_", nodes, 1, true);
   shutdown = false;
   upd_processed = 0;
-  std::thread qworker(querier, buf_tree, nodes);
+  std::thread qworker(querier, g_tree, nodes);
 
   for (int l = 1; l <= 3; l++) {
     for (int i = 0; i < full_root; i++) {
@@ -130,7 +130,7 @@ TEST(BufferTree, EvilInsertions) {
         upd.first  = 1 << l;
         upd.second = (nodes - 1) - (upd.first % nodes);
       }
-      buf_tree->insert(upd);
+      g_tree->insert(upd);
     }
   }
   
@@ -138,19 +138,19 @@ TEST(BufferTree, EvilInsertions) {
     update_t upd;
     upd.first = 0;
     upd.second = (nodes - 1) - (0 % nodes);
-    buf_tree->insert(upd);
+    g_tree->insert(upd);
   }
-  buf_tree->force_flush();
+  g_tree->force_flush();
   shutdown = true;
-  buf_tree->set_non_block(true); // switch to non-blocking calls in an effort to exit
+  g_tree->set_non_block(true); // switch to non-blocking calls in an effort to exit
 
   qworker.join();
   ASSERT_EQ(num_updates, upd_processed);
-  delete buf_tree;
+  delete g_tree;
 }
 
 
-TEST(BufferTree, ManyQueryThreads) {
+TEST(GutterTree, ManyQueryThreads) {
   const int nodes       = 1024;
   const int num_updates = 5206;
   const int buf_exp     = 20;
@@ -160,27 +160,27 @@ TEST(BufferTree, ManyQueryThreads) {
   // create contention between the threads. (we pass 5 threads and queue factor =1 instead of 20,8)
   write_configuration(buf_exp, branch, 1, 5); // 1 is queue_factor, 5 is page_factor
 
-  BufferTree *buf_tree = new BufferTree("./test_", nodes, 5, true);
+  GutterTree *g_tree = new GutterTree("./test_", nodes, 5, true);
   shutdown = false;
   upd_processed = 0;
   std::thread query_threads[20];
   for (int t = 0; t < 20; t++) {
-    query_threads[t] = std::thread(querier, buf_tree, nodes);
+    query_threads[t] = std::thread(querier, g_tree, nodes);
   }
   
   for (int i = 0; i < num_updates; i++) {
     update_t upd;
     upd.first = i % nodes;
     upd.second = (nodes - 1) - (i % nodes);
-    buf_tree->insert(upd);
+    g_tree->insert(upd);
   }
-  buf_tree->force_flush();
+  g_tree->force_flush();
   shutdown = true;
-  buf_tree->set_non_block(true); // switch to non-blocking calls in an effort to exit
+  g_tree->set_non_block(true); // switch to non-blocking calls in an effort to exit
 
   for (int t = 0; t < 20; t++) {
     query_threads[t].join();
   }
   ASSERT_EQ(num_updates, upd_processed);
-  delete buf_tree;
+  delete g_tree;
 }

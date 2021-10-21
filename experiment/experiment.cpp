@@ -3,7 +3,7 @@
 #include <chrono>
 #include <atomic>
 #include <fstream>
-#include "../include/buffer_tree.h"
+#include "../include/gutter_tree.h"
 
 #define KB (uint64_t (1 << 10))
 #define MB (uint64_t (1 << 20))
@@ -15,10 +15,10 @@ static std::atomic<uint64_t> upd_processed;
 // queries the buffer tree and verifies that the data
 // returned makes sense
 // Should be run in a seperate thread
-void querier(BufferTree *buf_tree, int nodes) {
+void querier(GutterTree *g_tree, int nodes) {
   data_ret_t data;
   while(true) {
-    bool valid = buf_tree->get_data(data);
+    bool valid = g_tree->get_data(data);
     if (valid) {
       Node key = data.first;
       std::vector<Node> updates = data.second;
@@ -68,13 +68,13 @@ void run_test(const int nodes, const uint64_t num_updates, const uint64_t buffer
 
     write_configuration(buffer_exp, branch_factor, 16, 5);
 
-    BufferTree *buf_tree = new BufferTree("./test_", nodes, threads, true);
+    GutterTree *g_tree = new GutterTree("./test_", nodes, threads, true);
     shutdown = false;
     upd_processed = 0;
 
     std::thread query_threads[threads];
     for (int t = 0; t < threads; t++) {
-        query_threads[t] = std::thread(querier, buf_tree, nodes);
+        query_threads[t] = std::thread(querier, g_tree, nodes);
     }
     std::thread progress_thr(progress, num_updates);
 
@@ -83,13 +83,13 @@ void run_test(const int nodes, const uint64_t num_updates, const uint64_t buffer
         update_t upd;
         upd.first = i % nodes;
         upd.second = (nodes - 1) - (i % nodes);
-        buf_tree->insert(upd);
+        g_tree->insert(upd);
     }
     std::chrono::duration<double> delta = std::chrono::steady_clock::now() - start;
     printf("insertions took %f seconds: average rate = %f\n", delta.count(), num_updates/delta.count());
-    buf_tree->force_flush();
+    g_tree->force_flush();
     shutdown = true;
-    buf_tree->set_non_block(true); // tell any waiting threads to reset
+    g_tree->set_non_block(true); // tell any waiting threads to reset
 
     delta = std::chrono::steady_clock::now() - start;
     printf("insert+force_flush took %f seconds: average rate = %f\n", delta.count(), num_updates/delta.count());
@@ -98,7 +98,7 @@ void run_test(const int nodes, const uint64_t num_updates, const uint64_t buffer
         query_threads[t].join();
     }
     progress_thr.join();
-    delete buf_tree;
+    delete g_tree;
 }
 
 TEST(Experiment, LargeStandard) {

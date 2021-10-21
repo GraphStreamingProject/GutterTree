@@ -9,9 +9,9 @@
 #include "work_queue.h"
 
 /*
- * Structure of the BufferTree
+ * Structure of the GutterTree
  */
-class BufferTree {
+class GutterTree {
 private:
   // root directory of tree
   std::string dir;
@@ -38,7 +38,7 @@ private:
   std::mutex root_lock;
 
   /**
-   * Use buffering.conf configuration file to determine parameters of the BufferTree
+   * Use buffering.conf configuration file to determine parameters of the GutterTree
    * Sets the following variables
    * Buffer_Size  :   The size of the root buffer
    * Fanout       :   The maximum number of children per internal node
@@ -78,8 +78,8 @@ public:
    * @param workers the number of workers which will be using this buffer tree (defaults to 1)
    * @param reset   should truncate the file storage upon opening
    */
-  BufferTree(std::string dir, Node nodes, int workers, bool reset);
-  ~BufferTree();
+  GutterTree(std::string dir, Node nodes, int workers, bool reset);
+  ~GutterTree();
 
   /**
    * Puts an update into the data structure.
