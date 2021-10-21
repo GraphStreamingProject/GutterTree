@@ -3,7 +3,7 @@
 #include <string>
 #include <mutex>
 #include <condition_variable>
-#include "update.h"
+#include "types.h"
 
 typedef uint32_t buffer_id_t;
 typedef uint64_t File_Pointer;

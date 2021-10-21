@@ -13,15 +13,15 @@ struct queue_elm {
 
 /*
  * A circular queue of data elements.
- * Used in the bufferTree to place leaf data which is ready to be processed.
+ * Used by buffering to place leaf data which is ready to be processed.
  * Has a finite size and will block operations which do not have what they
  * need need (either empty or full for peek and push respectively)
  */
 
-class CircularQueue {
+class WorkQueue {
 public:
-	CircularQueue(int num_elements, int size_of_elm);
-	~CircularQueue();
+	WorkQueue(int num_elements, int size_of_elm);
+	~WorkQueue();
 
 	/* 
 	 * Add a data element to the queue
@@ -50,7 +50,7 @@ public:
 	std::condition_variable cirq_empty;
 	std::mutex read_lock;
 
-	// should CircularQueue peeks wait until they can succeed(false)
+	// should WorkQueue peeks wait until they can succeed(false)
 	// or return false on failure (true)
 	volatile bool no_block;
 

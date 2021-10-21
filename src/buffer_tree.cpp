@@ -80,8 +80,8 @@ nodes, int workers, bool reset=false) : dir(dir) {
 
 	setup_tree(); // setup the buffer tree
 
-	// create the circular queue in which we will place ripe fruit (full leaves)
-	cq = new CircularQueue(queue_factor*workers, leaf_size + page_size);
+	// create the work queue in which we will place ripe fruit (full leaves)
+	wq = new WorkQueue(queue_factor*workers, leaf_size + page_size);
 	
 	// will want to use mmap instead? - how much is in RAM after allocation (none?)
 	// can't use mmap instead might use it as well. (Still need to create the file to be a given size)
@@ -93,7 +93,7 @@ nodes, int workers, bool reset=false) : dir(dir) {
 
 BufferTree::~BufferTree() {
 	printf("Closing BufferTree\n");
-	cq->get_stats();
+	wq->get_stats();
 	// force_flush(); // flush everything to leaves (could just flush to files in higher levels)
 
 	// free malloc'd memory
@@ -114,7 +114,7 @@ BufferTree::~BufferTree() {
 		if (buffers[i] != nullptr)
 			delete buffers[i];
 	}
-	delete cq;
+	delete wq;
 	close(backing_store);
 }
 
@@ -160,7 +160,7 @@ void BufferTree::configure_tree() {
 			}
 		}
 	} else {
-		printf("WARNING: Could not open BufferTree configuration file! Using default setttings.\n");
+		printf("WARNING: Could not open buffering configuration file! Using default setttings.\n");
 	}
 	buffer_size = 1 << buffer_exp;
 	fanout = branch;
@@ -446,7 +446,7 @@ flush_ret_t inline BufferTree::flush_leaf_node(BufferControlBlock *bcb) {
 			offset += len;
 		}
 	}
-	cq->push(read_buffers[level-1], bcb->size());
+	wq->push(read_buffers[level-1], bcb->size());
 	bcb->reset();
 }
 
@@ -457,7 +457,7 @@ bool BufferTree::get_data(data_ret_t &data) {
 
 	// make a request to the circular buffer for data
 	std::pair<int, queue_elm> queue_data;
-	bool got_data = cq->peek(queue_data);
+	bool got_data = wq->peek(queue_data);
 
 	if (!got_data)
 		return false; // we got no data so return not valid
@@ -468,7 +468,7 @@ bool BufferTree::get_data(data_ret_t &data) {
 	uint32_t len      = elm.size;
 
 	if (len == 0) {
-		cq->pop(i);
+		wq->pop(i);
 		return false; // we got no data so return not valid
         }
 
@@ -498,7 +498,7 @@ bool BufferTree::get_data(data_ret_t &data) {
 		idx += serial_update_size;
 	}
 
-	cq->pop(i); // mark the cq entry as clean
+	wq->pop(i); // mark the wq entry as clean
 	return true;
 }
 
@@ -517,11 +517,11 @@ flush_ret_t BufferTree::force_flush() {
 
 void BufferTree::set_non_block(bool block) {
 	if (block) {
-		cq->no_block = true; // circular queue operations should no longer block
-		cq->cirq_empty.notify_all();
-		cq->cirq_full.notify_all();
+		wq->no_block = true; // circular queue operations should no longer block
+		wq->cirq_empty.notify_all();
+		wq->cirq_full.notify_all();
 	}
 	else {
-		cq->no_block = false; // set circular queue to block if necessary
+		wq->no_block = false; // set circular queue to block if necessary
 	}
 }

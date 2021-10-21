@@ -67,9 +67,11 @@ add_library(FastBufferTree
     include/buffer_tree.h
     src/buffer_control_block.cpp
     include/buffer_control_block.h
-    src/circular_queue.cpp
-    include/circular_queue.h
-    include/update.h)
+    src/standalone_gutters.cpp
+    include/standalone_gutters.h
+    src/work_queue.cpp
+    include/work_queue.h
+    include/types.h)
 target_link_libraries(FastBufferTree PRIVATE GTest::gtest)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
@@ -94,38 +96,39 @@ else()
   target_compile_options(FastBufferTree PRIVATE -DPOSIX_FCNTL)
 endif ()
 set_target_properties(FastBufferTree PROPERTIES PUBLIC_HEADER 
-  "include/buffer_tree.h;include/buffer_control_block.h;include/circular_queue.h;include/update.h"
+  "include/buffer_tree.h;include/buffer_control_block.h;include/standalone_gutters.h;include/work_queue.h;include/types.h"
 )
 
-add_executable(buffertree_tests
+add_executable(buffering_tests
   test/runner.cpp
-  test/basic_test.cpp)
-target_link_libraries(buffertree_tests PRIVATE GTest::gtest FastBufferTree)
+  test/buffer_tree_test.cpp
+  test/standalone_gutters_test.cpp)
+target_link_libraries(buffering_tests PRIVATE GTest::gtest FastBufferTree)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(buffertree_tests PRIVATE -g)
+  target_compile_options(buffering_tests PRIVATE -g)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-    target_compile_options(buffertree_tests PRIVATE -O3)
+    target_compile_options(buffering_tests PRIVATE -O3)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(buffertree_tests PRIVATE /O2)
+    target_compile_options(buffering_tests PRIVATE /O2)
   endif()
 endif ()
 
-add_executable(buffer_experiment
+add_executable(buffertree_experiment
   experiment/runner.cpp
   experiment/experiment.cpp)
-target_link_libraries(buffer_experiment PRIVATE GTest::gtest FastBufferTree)
+target_link_libraries(buffertree_experiment PRIVATE GTest::gtest FastBufferTree)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(buffer_experiment PRIVATE -g)
+  target_compile_options(buffertree_experiment PRIVATE -g)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-    target_compile_options(buffer_experiment PRIVATE -O3)
+    target_compile_options(buffertree_experiment PRIVATE -O3)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(buffer_experiment PRIVATE /O2)
+    target_compile_options(buffertree_experiment PRIVATE /O2)
   endif()
 endif ()
 

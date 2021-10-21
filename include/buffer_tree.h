@@ -1,17 +1,12 @@
 #pragma once
 #include <cstdint>
 #include <string>
-#include <vector>
 #include <queue>
 #include <mutex>
 #include <math.h>
-#include "update.h"
+#include "types.h"
 #include "buffer_control_block.h"
-#include "circular_queue.h"
-
-typedef void insert_ret_t;
-typedef void flush_ret_t;
-typedef std::pair<Node, std::vector<Node>> data_ret_t;
+#include "work_queue.h"
 
 /*
  * Structure of the BufferTree
@@ -39,11 +34,18 @@ private:
    */
   char *root_node;
   flush_ret_t flush_root();
-  flush_ret_t flush_control_block(BufferControlBlock *bcb);
-  flush_ret_t flush_internal_node(BufferControlBlock *bcb);
-  flush_ret_t flush_leaf_node(BufferControlBlock *bcb);
   uint32_t root_position;
   std::mutex root_lock;
+
+  /**
+   * Use buffering.conf configuration file to determine parameters of the BufferTree
+   * Sets the following variables
+   * Buffer_Size  :   The size of the root buffer
+   * Fanout       :   The maximum number of children per internal node
+   * Queue_Factor :   The number of queue slots per worker removing data from the queue
+   * Page_Factor  :   Multiply system page size by this number to get our write granularity
+   */
+  void configure_tree();
 
   /*
    * function which actually carries out the flush. Designed to be
@@ -60,8 +62,12 @@ private:
   flush_ret_t do_flush(char *data, uint32_t size, uint32_t begin, 
     node_id_t min_key, node_id_t max_key, uint16_t options, uint8_t level);
 
-  // Circular queue in which we place leaves that fill up
-  CircularQueue *cq;
+  flush_ret_t flush_control_block(BufferControlBlock *bcb);
+  flush_ret_t flush_internal_node(BufferControlBlock *bcb);
+  flush_ret_t flush_leaf_node(BufferControlBlock *bcb);
+
+  // Work queue in which we place leaves that fill up
+  WorkQueue *wq;
 
 public:
   /**
@@ -74,16 +80,6 @@ public:
    */
   BufferTree(std::string dir, Node nodes, int workers, bool reset);
   ~BufferTree();
-
-  /**
-   * Use buffering.conf configuration file to determine parameters of the BufferTree
-   * Sets the following variables
-   * Buffer_Size  :   The size of the root buffer
-   * Fanout       :   The maximum number of children per internal node
-   * Queue_Factor :   The number of queue slots per worker removing data from the queue
-   * Page_Factor  :   Multiply system page size by this number to get our write granularity
-   */
-  void configure_tree();
 
   /**
    * Puts an update into the data structure.
@@ -109,7 +105,7 @@ public:
    * Notifies all threads waiting on condition variables that 
    * they should check their wait condition again
    * Useful when switching from blocking to non-blocking calls
-   * to the circular queue
+   * to the work queue
    * For example: we set this to true when shutting down workers
    * @param    block is true if we should turn on non-blocking operations
    *           and false if we should turn them off

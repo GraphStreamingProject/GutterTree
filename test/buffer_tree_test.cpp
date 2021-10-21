@@ -47,7 +47,7 @@ void write_configuration(uint32_t buffer_exp, uint32_t fanout, int queue_factor,
 // and no work is claimed off of the work queue
 // to work correctly num_updates must be a multiple of nodes
 void run_test(const int nodes, const int num_updates, const uint32_t buffer_exp, const uint32_t branch_factor) {
-  printf("Running Test: nodes=%i num_updates=%i buffer_size 2^%i branch_factor %i\n",
+  printf("BufferTree => Running Test: nodes=%i num_updates=%i buffer_size 2^%i branch_factor %i\n",
          nodes, num_updates, buffer_exp, branch_factor);
 
   write_configuration(buffer_exp, branch_factor, 8, 1); // 8 is queue_factor, 1 is page_factor
@@ -72,7 +72,7 @@ void run_test(const int nodes, const int num_updates, const uint32_t buffer_exp,
   delete buf_tree;
 }
 
-TEST(BasicInsert, Small) {
+TEST(BufferTree, Small) {
   const int nodes = 10;
   const int num_updates = 400;
   const int buf_exp = 12;
@@ -81,7 +81,7 @@ TEST(BasicInsert, Small) {
   run_test(nodes, num_updates, buf_exp, branch);
 }
 
-TEST(BasicInsert, Medium) {
+TEST(BufferTree, Medium) {
   const int nodes = 100;
   const int num_updates = 360000;
   const int buf_exp = 20;
@@ -90,7 +90,7 @@ TEST(BasicInsert, Medium) {
   run_test(nodes, num_updates, buf_exp, branch);
 }
 
-TEST(BasicInsert, ManyInserts) {
+TEST(BufferTree, ManyInserts) {
   const int nodes = 32;
   const int num_updates = 1000000;
   const int buf_exp = 20;
@@ -106,7 +106,7 @@ TEST(BasicInsert, ManyInserts) {
 // is done. We insert a full buffer of 0 updates.
 //
 // For exampele 0 and 2, then 0 and 4, etc. 
-TEST(BasicInsert, EvilInsertions) {
+TEST(BufferTree, EvilInsertions) {
   int full_root = MB/BufferTree::serial_update_size;
   const int nodes       = 32;
   const int num_updates = 4 * full_root;
@@ -150,7 +150,7 @@ TEST(BasicInsert, EvilInsertions) {
 }
 
 
-TEST(Parallelism, ManyQueryThreads) {
+TEST(BufferTree, ManyQueryThreads) {
   const int nodes       = 1024;
   const int num_updates = 5206;
   const int buf_exp     = 20;

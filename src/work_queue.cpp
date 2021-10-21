@@ -1,17 +1,17 @@
-#include "../include/circular_queue.h"
-#include "../include/update.h"
+#include "../include/work_queue.h"
+#include "../include/types.h"
 
 #include <string.h>
 #include <chrono>
 
-CircularQueue::CircularQueue(int num_elements, int size_of_elm): 
+WorkQueue::WorkQueue(int num_elements, int size_of_elm): 
   len(num_elements), elm_size(size_of_elm) {
 	head = 0;
 	tail = 0;
 	no_block = false;
 	queue_size = 0;
 
-	// malloc the memory for the circular queue
+	// malloc the memory for the work queue
 	queue_array = (queue_elm *) malloc(sizeof(queue_elm) * len);
 	data_array = (char *) malloc(elm_size * len * sizeof(char));
 	for (int i = 0; i < len; i++) {
@@ -21,18 +21,18 @@ CircularQueue::CircularQueue(int num_elements, int size_of_elm):
 		queue_array[i].size    = 0;
 	}
 
-	printf("CQ: created circular queue with %li elements each of size %li\n", len, elm_size);
+	printf("WQ: created work queue with %li elements each of size %li\n", len, elm_size);
 }
 
-CircularQueue::~CircularQueue() {
+WorkQueue::~WorkQueue() {
 	// free the queue
 	free(data_array);
 	free(queue_array);
 }
 
-void CircularQueue::push(char *elm, int size) {
+void WorkQueue::push(char *elm, int size) {
 	if(size > elm_size) {
-		printf("CQ: write of size %i bytes greater than max of %li\n", size, elm_size);
+		printf("WQ: write of size %i bytes greater than max of %li\n", size, elm_size);
 		throw WriteTooBig();
 	}
 
@@ -42,7 +42,7 @@ void CircularQueue::push(char *elm, int size) {
 
 	while(true) {
 		std::unique_lock<std::mutex> lk(write_lock);
-		// printf("CQ: push: wait on not-full. full() = %s\n", (full())? "true" : "false");
+		// printf("WQ: push: wait on not-full. full() = %s\n", (full())? "true" : "false");
 		cirq_full.wait_for(lk, std::chrono::seconds(2), [this]{return !full();});
 		if(!full()) {
 			queue_size++;
@@ -60,7 +60,7 @@ void CircularQueue::push(char *elm, int size) {
 	}
 }
 
-bool CircularQueue::peek(std::pair<int, queue_elm> &ret) {
+bool WorkQueue::peek(std::pair<int, queue_elm> &ret) {
 	do {
 		std::unique_lock<std::mutex> lk(read_lock);
 		cirq_empty.wait_for(lk, std::chrono::seconds(2), [this]{return (!empty() || no_block);});
@@ -80,7 +80,7 @@ bool CircularQueue::peek(std::pair<int, queue_elm> &ret) {
 	return false;
 }
 
-void CircularQueue::pop(int i) {
+void WorkQueue::pop(int i) {
 	write_lock.lock();
 	queue_array[i].dirty   = false; // this data has been processed and this slot may now be overwritten
 	queue_array[i].touched = false; // may read this slot
@@ -88,7 +88,7 @@ void CircularQueue::pop(int i) {
 	cirq_full.notify_one();
 }
 
-void CircularQueue::print() {
-	printf("CQ: head=%i, tail=%i, is_full=%s, is_empty=%s\n", 
+void WorkQueue::print() {
+	printf("WQ: head=%i, tail=%i, is_full=%s, is_empty=%s\n", 
 		head, tail, full()? "true" : "false", empty()? "true" : "false");
 }
