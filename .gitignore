@@ -16,8 +16,8 @@ cmake-build-debug
 
 # our configuration file and executables
 buffering.conf
-buffer_experiment
-buffertree_tests
+guttertree_experiment
+buffering_tests
 test_*
 build
 lib

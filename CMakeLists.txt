@@ -116,26 +116,26 @@ else ()
   endif()
 endif ()
 
-add_executable(buffertree_experiment
+add_executable(guttertree_experiment
   experiment/runner.cpp
   experiment/experiment.cpp)
-target_link_libraries(buffertree_experiment PRIVATE GTest::gtest GutterTree)
+target_link_libraries(guttertree_experiment PRIVATE GTest::gtest GutterTree)
 # optimize unless debug
 if (DEFINED ENV{DEBUG})
   message("Disabling optimizations and enabling debug symbols")
-  target_compile_options(buffertree_experiment PRIVATE -g)
+  target_compile_options(guttertree_experiment PRIVATE -g)
 else ()
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-    target_compile_options(buffertree_experiment PRIVATE -O3)
+    target_compile_options(guttertree_experiment PRIVATE -O3)
   elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(buffertree_experiment PRIVATE /O2)
+    target_compile_options(guttertree_experiment PRIVATE /O2)
   endif()
 endif ()
 
 
 #uncomment if manually installing project
 #without specifying INSTALL_PREFIX elsewhere
-#set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/BufferTree/prefix)
+#set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/guttertree/prefix)
 
 # for use when building as an external project
 install(TARGETS GutterTree
