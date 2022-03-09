@@ -105,7 +105,7 @@ bool StandAloneGutters::get_data(data_ret_t &data) {
 
 flush_ret_t StandAloneGutters::force_flush() {
   for (auto & buffer : buffers) {
-    if (!buffer.empty()) { // have stuff to flush
+    if (buffer.size() > 1) { // have stuff to flush
       node_id_t i = buffer[0];
       flush(buffer, buffer.size()*sizeof(node_id_t));
       buffer.clear();

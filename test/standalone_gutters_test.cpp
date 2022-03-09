@@ -159,7 +159,7 @@ TEST(StandAloneGutters, ManyQueryThreads) {
 
   // here we limit the number of slots in the circular queue to 
   // create contention between the threads. (we pass 5 threads and queue factor =1 instead of 20,8)
-  write_configuration(1, 8); // 1 is queue_factor, 8 is gutter_factor
+  write_configuration(1, 1); // 1 is queue_factor, 1 is gutter_factor
 
   StandAloneGutters *gutters = new StandAloneGutters(nodes, 5); // 5 is the number of workers
   shutdown = false;
@@ -212,6 +212,9 @@ TEST(StandAloneGutters, FlushAndInsertAgain) {
     }
     gutters->force_flush();
   }
+
+  // flush again to ensure that doesn't cause problems
+  gutters->force_flush();
   shutdown = true;
   gutters->set_non_block(true); // switch to non-blocking calls in an effort to exit
 
