@@ -2,12 +2,11 @@
 #include <fstream>
 #include "../include/standalone_gutters.h"
 
-StandAloneGutters::StandAloneGutters(node_id_t num_nodes, int workers) :
-buffers(num_nodes) {
+StandAloneGutters::StandAloneGutters(node_id_t num_nodes, int workers) : buffers(num_nodes) {
   configure(); // read buffering configuration file
 
-  // size of leaf proportional to size of sketch (add 2 because we have 2 metadata slots per buffer)
-  uint32_t bytes_size = floor(gutter_factor * sketch_size(num_nodes)) + 2 * sizeof(node_id_t);
+  // size of leaf proportional to size of sketch (add 1 because we have 1 metadata slots per buffer)
+  uint32_t bytes_size = floor(gutter_factor * sketch_size(num_nodes)) + sizeof(node_id_t);
   buffer_size = bytes_size / sizeof(node_id_t);
 
   wq = new WorkQueue(workers * queue_factor, bytes_size);
@@ -107,8 +106,8 @@ bool StandAloneGutters::get_data(data_ret_t &data) {
 flush_ret_t StandAloneGutters::force_flush() {
   for (auto & buffer : buffers) {
     if (!buffer.empty()) { // have stuff to flush
+      node_id_t i = buffer[0];
       flush(buffer, buffer.size()*sizeof(node_id_t));
-      node_id_t i = buffer[1];
       buffer.clear();
       buffer.push_back(i);
     }
