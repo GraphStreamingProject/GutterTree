@@ -191,11 +191,9 @@ TEST(StandAloneGutters, FlushAndInsertAgain) {
   const int num_updates = 10000;
   const int num_flushes = 5;
 
-  // here we limit the number of slots in the circular queue to 
-  // create contention between the threads. (we pass 5 threads and queue factor =1 instead of 20,8)
-  write_configuration(2, 8); // 1 is queue_factor, 8 is gutter_factor
+  write_configuration(2, 8); // 2 is queue_factor, 8 is gutter_factor
 
-  StandAloneGutters *gutters = new StandAloneGutters(nodes, 2); // 5 is the number of workers
+  StandAloneGutters *gutters = new StandAloneGutters(nodes, 2); // 2 is the number of workers
   shutdown = false;
   upd_processed = 0;
   std::thread query_threads[2];
