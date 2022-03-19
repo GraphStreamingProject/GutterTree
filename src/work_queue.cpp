@@ -52,7 +52,7 @@ void WorkQueue::push(node_id_t node_idx, std::vector<node_id_t> &upd_vec) {
 
   // set node id and set node's data vector equal to data_vec
   node->node_idx = node_idx;
-  node->data_vec = upd_vec;
+  std::swap(node->data_vec, upd_vec);
 
   // add this block to the consumer queue for processing
   consumer_list_lock.lock();
@@ -116,7 +116,7 @@ bool WorkQueue::peek_batch(std::vector<DataNode *> &node_vec, int batch_size) {
     consumer_list = consumer_list->next;
     --consumer_list_size;
   }
-
+  lk.unlock();
   return true;
 }
 
