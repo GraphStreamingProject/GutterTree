@@ -34,9 +34,9 @@ WorkQueue::~WorkQueue() {
   }
 }
 
-void WorkQueue::push(node_id_t node_idx, std::vector<node_id_t> *&data_vec) {
-  if(data_vec->size() > max_elm_size) {
-    throw WriteTooBig(data_vec->size(), max_elm_size);
+void WorkQueue::push(node_id_t node_idx, std::vector<node_id_t> upd_vec) {
+  if(upd_vec.size() > max_elm_size) {
+    throw WriteTooBig(upd_vec.size(), max_elm_size);
   }
 
   std::unique_lock<std::mutex> lk(producer_list_lock);
@@ -50,9 +50,9 @@ void WorkQueue::push(node_id_t node_idx, std::vector<node_id_t> *&data_vec) {
   producer_list = producer_list->next;
   lk.unlock();
 
-  // set node id and swap pointers
-  node->node_idx = node_idx; // node id
-  std::swap(node->data_vec, data_vec); // vector reference
+  // set node id and set node's data vector equal to data_vec
+  node->node_idx = node_idx;
+  node->data_vec = upd_vec;
 
   // add this block to the consumer queue for processing
   consumer_list_lock.lock();
@@ -89,11 +89,11 @@ bool WorkQueue::peek(DataNode *&data) {
   return true;
 }
 
-bool WorkQueue::peek_batch(std::vector<DataNode *> &data_vec, int batch_size) {
+bool WorkQueue::peek_batch(std::vector<DataNode *> &node_vec, int batch_size) {
   assert(batch_size <= len); // cannot request a batch bigger than the work queue
 
-  data_vec.clear(); // clear out any old data
-  data_vec.reserve(batch_size);
+  node_vec.clear(); // clear out any old data
+  node_vec.reserve(batch_size);
 
   // wait until consumer queue is large enough
   std::unique_lock<std::mutex> lk(consumer_list_lock);
@@ -112,7 +112,7 @@ bool WorkQueue::peek_batch(std::vector<DataNode *> &data_vec, int batch_size) {
   for(int i = 0; i < batch_size; i++) {
     if (consumer_list == nullptr) break; // if non_block is true may not be able to get full batch
 
-    data_vec.push_back(consumer_list);
+    node_vec.push_back(consumer_list);
     consumer_list = consumer_list->next;
     --consumer_list_size;
   }
@@ -144,14 +144,14 @@ void WorkQueue::print() {
   int p_size = 0;
   DataNode *temp = producer_list;
   while (temp != nullptr) {
-    to_print += std::to_string(p_size) + ": " + std::to_string((uint64_t)temp->data_vec) + "\n";
+    to_print += std::to_string(p_size) + ": " + std::to_string((uint64_t)temp) + "\n";
     temp = temp->next;
     ++p_size;
   }
   int c_size = 0;
   temp = consumer_list;
   while (temp != nullptr) {
-    to_print += std::to_string(c_size) + ": " + std::to_string((uint64_t)temp->data_vec) + "\n";
+    to_print += std::to_string(c_size) + ": " + std::to_string((uint64_t)temp) + "\n";
     temp = temp->next;
     ++c_size;
   }

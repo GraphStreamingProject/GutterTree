@@ -13,17 +13,16 @@ class WorkQueue {
     // LL next pointer
     DataNode *next = nullptr;
     node_id_t node_idx = 0;
-    std::vector<node_id_t> *data_vec;
+    std::vector<node_id_t> data_vec;
 
     DataNode(const size_t vec_size) {
-      data_vec = new std::vector<node_id_t>();
-      data_vec->reserve(vec_size);
+      data_vec.reserve(vec_size);
     }
 
     friend class WorkQueue;
    public:
     node_id_t get_node_idx() { return node_idx; }
-    std::vector<node_id_t> get_data_vec() { return *data_vec; }
+    std::vector<node_id_t> get_data_vec() { return data_vec; }
   };
 
   /*
@@ -36,10 +35,11 @@ class WorkQueue {
 
   /* 
    * Add a data element to the queue
-   * @param data    reference to the data to be placed into the queue
-   * @param size    the number items in the vector
+   * @param node_idx  the graph node id these updates are associated with
+   * @param data_vec  vector of updates
+   *
    */
-  void push(node_id_t node_idx, std::vector<node_id_t> *&data_vec);
+  void push(node_id_t node_idx, std::vector<node_id_t> upd_vec);
 
   /* 
    * Get data from the queue for processing
@@ -50,9 +50,11 @@ class WorkQueue {
 
   /*
    * Wait until the work queue has enough items in it to satisfy the request and then
-   * return batch_size number of work units
+   * @param node_vec     where to place the batch of Data
+   * @param batch_size   the amount of Data requested
+   * return true if able to get good data, false otherwise
    */
-  bool peek_batch(std::vector<DataNode *> &data_vec, int batch_size);
+  bool peek_batch(std::vector<DataNode *> &node_vec, int batch_size);
   
   /* 
    * After processing data taken from the work queue call this function
