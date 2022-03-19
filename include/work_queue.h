@@ -39,7 +39,7 @@ class WorkQueue {
    * @param data_vec  vector of updates
    *
    */
-  void push(node_id_t node_idx, std::vector<node_id_t> upd_vec);
+  void push(node_id_t node_idx, std::vector<node_id_t> &upd_vec);
 
   /* 
    * Get data from the queue for processing

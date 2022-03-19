@@ -34,7 +34,7 @@ WorkQueue::~WorkQueue() {
   }
 }
 
-void WorkQueue::push(node_id_t node_idx, std::vector<node_id_t> upd_vec) {
+void WorkQueue::push(node_id_t node_idx, std::vector<node_id_t> &upd_vec) {
   if(upd_vec.size() > max_elm_size) {
     throw WriteTooBig(upd_vec.size(), max_elm_size);
   }
