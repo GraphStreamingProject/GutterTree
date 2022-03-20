@@ -6,21 +6,17 @@ void CacheGutterTree::CacheGutterTreeNode::flush(bool force) {
       auto &outputBuffer = outputBuffers[update.first - updateSpan.first];
       outputBuffer.push_back(update.second);
       if (outputBuffer.size() == config.bufferSize) {
-        int data_size = config.bufferSize * sizeof(node_id_t);
-        config.wq.push(reinterpret_cast<char *>(outputBuffer.data()), data_size);
+        config.wq.push(update.first - updateSpan.first, buffer);
         outputBuffer.clear();
-        outputBuffer.push_back(updateSpan.first + update.first);
       }
     }
     if (force) {
       const size_t numOutputBuffers = updateSpan.second - updateSpan.first + 1;
       for (size_t i = 0; i < numOutputBuffers; ++i) {
-        std::vector<node_id_t> buffer = outputBuffers[i];
+        std::vector<node_id_t> &buffer = outputBuffers[i];
         if (buffer.size() > 0) {
-          int data_size = buffer.size() * sizeof(node_id_t);
-          config.wq.push(reinterpret_cast<char *>(buffer.data()), data_size);
+          config.wq.push(i, buffer);
           buffer.clear();
-          buffer.push_back(updateSpan.first + i);
         }
       }      
     }

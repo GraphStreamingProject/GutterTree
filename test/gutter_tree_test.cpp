@@ -13,21 +13,45 @@
 static bool shutdown = false;
 static std::atomic<uint32_t> upd_processed;
 
-// queries the buffer tree and verifies that the data
+// queries the guttering system and verifies that the data
 // returned makes sense
 // Should be run in a seperate thread
-static void querier(GutterTree *gt, int nodes) {
-  data_ret_t data;
+static void querier(GutterTree *tree, int nodes) {
+  WorkQueue::DataNode *data;
   while(true) {
-    bool valid = gt->get_data(data);
+    bool valid = tree->get_data(data);
     if (valid) {
-      node_id_t key = data.first;
-      std::vector<size_t> updates = data.second;
+      node_id_t key = data->get_node_idx();
+      std::vector<node_id_t> updates = data->get_data_vec();
       // verify that the updates are all between the correct nodes
       for (auto upd : updates) {
         // printf("edge to %d\n", upd.first);
         ASSERT_EQ(nodes - (key + 1), upd) << "key " << key;
-        upd_processed++;
+        upd_processed += 1;
+      }
+      tree->get_data_callback(data);
+    }
+    else if(shutdown)
+      return;
+  }
+}
+
+static void batch_querier(GutterTree *tree, int nodes, int batch_size) {
+  std::vector<WorkQueue::DataNode *> data_vec;
+  while(true) {
+    bool valid = tree->get_data_batched(data_vec, batch_size);
+    if (valid) {
+      // printf("Got batched data vector of size %lu\n", data_vec.size());
+      for (auto data : data_vec) {
+        node_id_t key = data->get_node_idx();
+        std::vector<node_id_t> updates = data->get_data_vec();
+        // verify that the updates are all between the correct nodes
+        for (auto upd : updates) {
+          // printf("edge to %d\n", upd.first);
+          ASSERT_EQ(nodes - (key + 1), upd) << "key " << key;
+          upd_processed += 1;
+        }
+        tree->get_data_callback(data);
       }
     }
     else if(shutdown)
@@ -198,7 +222,7 @@ TEST(GutterTreeTests, ManyQueryThreads) {
 
   // here we limit the number of slots in the circular queue to 
   // create contention between the threads. (we pass 5 threads and queue factor =1 instead of 20,8)
-  write_configuration(buf_exp, branch, 1, -2, 1); // 1 is queue_factor, -2 is gutter_factor
+  write_configuration(buf_exp, branch, 1, 1, 1); // 1 is queue_factor
 
   GutterTree *gt = new GutterTree("./test_", nodes, 5, true); // 5 is the number of workers
   shutdown = false;

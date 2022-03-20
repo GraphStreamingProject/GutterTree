@@ -8,7 +8,6 @@
  */
 class StandAloneGutters : public GutteringSystem {
 private:
-  uint32_t buffer_size; // size of a buffer (including metadata)
   std::vector<std::vector<node_id_t>> buffers; // array dump of numbers for performance:
                                                // DO NOT try to access directly!
 
@@ -20,8 +19,6 @@ public:
    * @param workers     the number of workers which will be removing batches
    */
   StandAloneGutters(node_id_t nodes, int workers);
-
-  ~StandAloneGutters();
 
   /**
    * Puts an update into the data structure.
@@ -35,9 +32,4 @@ public:
    * @return nothing.
    */
   flush_ret_t force_flush();
-
-  /*
-   * Access the size of a leaf gutter through the GutteringSystem abstract class
-   */
-  int upds_per_gutter() { return buffer_size / sizeof(node_id_t); }
 };

@@ -30,7 +30,7 @@ class CacheGutterTree : public GutteringSystem {
   struct CacheGutterTreeConfig {
     const size_t numLevels;
     const size_t bufferSize;
-    WorkQueue *wq;
+    WorkQueue &wq;
   };
 
   class CacheGutterTreeNode {
@@ -110,14 +110,10 @@ class CacheGutterTree : public GutteringSystem {
    * @param workers   the number of workers that will be removing batches
    * Note: using comma operator in a hacky way to configure the system before initializing
    */
-  CacheGutterTree(node_id_t nodes, int workers) {
-    configure_system();
-    buffer_size = gutter_factor * sketch_size(nodes) / sizeof(node_id_t);
-    wq = new WorkQueue(workers * (int) queue_factor, (int) buffer_size);
-    config = CacheGutterTreeConfig(getNumLevels(nodes), bytes_size, wq);
-    root = CacheGutterTreeNode(std::pair<size_t, size_t>(0, nodes - 1), 0, config);
-  }
-    
+  CacheGutterTree(node_id_t nodes, int workers) :
+    GutteringSystem(nodes, workers),
+    config{getNumLevels(nodes), buffer_size, wq},
+    root{std::pair<size_t, size_t>(0, nodes - 1), 0, config} {}
 
   /**
    * Puts an update into the data structure.
@@ -131,9 +127,4 @@ class CacheGutterTree : public GutteringSystem {
    * @return nothing.
    */
   flush_ret_t force_flush() { root.flush_tree(); }
-
-  /*
-   * Access the size of a leaf gutter through the GutteringSystem abstract class
-   */
-  int upds_per_gutter() { return bytes_size / sizeof(node_id_t); }
 };

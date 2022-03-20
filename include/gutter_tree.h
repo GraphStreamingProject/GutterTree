@@ -34,17 +34,6 @@ private:
   flush_ret_t flush_internal_node(flush_struct &flush_from, BufferControlBlock *bcb);
   flush_ret_t flush_leaf_node(flush_struct &flush_from, BufferControlBlock *bcb);
 
-  /**
-  * Use buffering.conf configuration file to determine parameters of the GutterTree
-  * Sets the following variables
-  * Buffer_Size  :   The size of the root buffer
-  * Fanout       :   The maximum number of children per internal node
-  * Queue_Factor :   The number of queue slots per worker removing data from the queue
-  * Page_Factor  :   Multiply system page size by this number to get our write granularity
-  * Num_Flushers :   The number of flush threads to use for async flushing.
-  */
-  void configure_tree();
-
   /*
    * function which actually carries out the flush. Designed to be
    * called either upon the root or upon a buffer at any level of the tree
@@ -59,6 +48,8 @@ private:
    */
   flush_ret_t do_flush(flush_struct &flush_from, uint32_t size, uint32_t begin, 
     node_id_t min_key, node_id_t max_key, uint16_t options, uint8_t level);
+
+  void mem_to_wq(node_id_t node_idx, char *mem_addr, uint32_t size);
 
   /*
    * Variables which track universal information about the buffer tree which
@@ -98,21 +89,6 @@ public:
    */
   insert_ret_t insert(const update_t &upd);
 
-  /*
-   * Ask the buffer tree for data and sleep if necessary until it is available.
-   * @param data       this is where to the key and vector of updates associated with it
-   * @return           true true if got valid data, false if unable to get data.
-   */
-  bool get_data(data_ret_t &data);
-
-  /*
-   * Ask for batch_size amount of data.
-   * @param batched_data   where to store the data
-   * @param batch_size     the amount of gutters to give
-   * @return               true if got valid data, false if unable to get data.
-   */
-  bool get_data_batched(std::vector<data_ret_t> &batched_data, int batch_size);
-
   /**
    * Flushes the entire tree down to the leaves.
    * @return nothing.
@@ -128,18 +104,6 @@ public:
    */
   flush_ret_t flush_subtree(flush_struct &flush_from, BufferControlBlock *bcb);
   flush_ret_t flush_control_block(flush_struct &flush_from, BufferControlBlock *bcb);
-
-  /*
-   * Notifies all threads waiting on condition variables that 
-   * they should check their wait condition again
-   * Useful when switching from blocking to non-blocking calls
-   * to the work queue
-   * For example: we set this to true when shutting down workers
-   * @param    block is true if we should turn on non-blocking operations
-   *           and false if we should turn them off
-   * @return   nothing
-   */
-  void set_non_block(bool block);
 
   /*
    * Access the maximum number of updates per gutter added to the work queue

@@ -65,12 +65,12 @@ add_library(GutterTree
   include/work_queue.h
   src/guttering_system.cpp
   include/guttering_system.h
-  # src/gutter_tree.cpp
-  # include/gutter_tree.h
-  # src/buffer_control_block.cpp
-  # include/buffer_control_block.h
-  # src/buffer_flusher.cpp
-  # include/buffer_flusher.h
+  src/gutter_tree.cpp
+  include/gutter_tree.h
+  src/buffer_control_block.cpp
+  include/buffer_control_block.h
+  src/buffer_flusher.cpp
+  include/buffer_flusher.h
   src/standalone_gutters.cpp
   include/standalone_gutters.h
   # src/cache_gutter_tree.cpp
@@ -94,7 +94,7 @@ target_include_directories(GutterTree PUBLIC include/)
 if (BUILD_EXE)
   add_executable(buffering_tests
     test/runner.cpp
-    # test/gutter_tree_test.cpp
+    test/gutter_tree_test.cpp
     test/standalone_gutters_test.cpp
     # test/cache_gutter_tree_test.cpp
   )

@@ -280,3 +280,37 @@ TEST(StandAloneGutters, GetDataBatchedTest) {
   ASSERT_EQ(num_updates, upd_processed);
   delete gutters;
 }
+
+TEST(StandAloneGutters, TinyGutters) {
+  const int nodes = 128;
+  const int num_updates = 10000;
+  const int gutter_factor = -1 * GutteringSystem::sketch_size(nodes);
+
+  write_configuration(1, gutter_factor);
+
+  StandAloneGutters *gutters = new StandAloneGutters(nodes, 10);
+  shutdown = false;
+  upd_processed = 0;
+  std::thread query_threads[10];
+  for (int t = 0; t < 10; t++) {
+    query_threads[t] = std::thread(querier, gutters, nodes);
+  }
+  
+  for (int i = 0; i < num_updates; i++) {
+    update_t upd;
+    upd.first = i % nodes;
+    upd.second = (nodes - 1) - (i % nodes);
+    gutters->insert(upd);
+  }
+
+  // flush the gutters
+  gutters->force_flush();
+  shutdown = true;
+  gutters->set_non_block(true); // switch to non-blocking calls in an effort to exit
+
+  for (int t = 0; t < 10; t++) {
+    query_threads[t].join();
+  }
+  ASSERT_EQ(num_updates, upd_processed);
+  delete gutters;
+}

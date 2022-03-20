@@ -15,10 +15,8 @@
  * and the number of nodes we will insert(N)
  * We assume that node indices begin at 0 and increase to N-1
  */
-GutterTree::GutterTree(std::string dir, node_id_t nodes, int workers, bool reset=false) : dir(dir), num_nodes(nodes) {
-  configure_system();
-
-  page_size = (page_size % serial_update_size == 0)? page_size : page_size + serial_update_size - page_size % serial_update_size;
+GutterTree::GutterTree(std::string dir, node_id_t nodes, int workers, bool reset=false) 
+: GutteringSystem(nodes, workers, true), dir(dir), num_nodes(nodes) {
   if (buffer_size < page_size) {
     printf("WARNING: requested buffer size smaller than page_size. Set to page_size.\n");
     buffer_size = page_size;
@@ -28,9 +26,7 @@ GutterTree::GutterTree(std::string dir, node_id_t nodes, int workers, bool reset
   max_level       = ceil(log(num_nodes) / log(fanout));
   backing_EOF     = 0;
 
-  // leaf size should be proportional to a sketch
-  leaf_size       = floor(gutter_factor * sketch_size(num_nodes));
-  leaf_size       = (leaf_size % serial_update_size == 0)? leaf_size : leaf_size + serial_update_size - leaf_size % serial_update_size;
+  leaf_size = leaf_gutter_size * serial_update_size; // bytes per leaf
 
   // create memory for cache and flushing
   flush_data = new flush_struct(this); // must be done after setting up universal variables
@@ -52,10 +48,8 @@ GutterTree::GutterTree(std::string dir, node_id_t nodes, int workers, bool reset
 
   setup_tree(); // setup the gutter tree
 
-  // create the work queue in which we will place full leaves
-  wq = new WorkQueue(queue_factor*workers, leaf_size + page_size);
-
   // start the buffer flushers
+  printf("number of flushers %i\n", num_flushers);
   flushers = (BufferFlusher **) malloc(sizeof(BufferFlusher *) * num_flushers);
   for (unsigned i = 0; i < num_flushers; i++) {
     flushers[i] = new BufferFlusher(i, this);
@@ -74,7 +68,6 @@ GutterTree::~GutterTree() {
     if (buffers[i] != nullptr)
       delete buffers[i];
   }
-  delete wq;
 
   for(unsigned i = 0; i < num_flushers; i++) {
     delete flushers[i];
@@ -364,10 +357,28 @@ flush_ret_t inline GutterTree::flush_internal_node(flush_struct &flush_from, Buf
   bcb->set_size(); // set size if sub level 0 flush
 }
 
+// helper function that converts memory address to vector of updates and push to work queue
+void GutterTree::mem_to_wq(node_id_t node_idx, char *mem_addr, uint32_t size) {
+  std::vector<node_id_t> data_vec;
+  data_vec.reserve(size / serial_update_size);
+  uint32_t offset = 0;
+  while (offset < size) {
+    update_t upd = deserialize_update(mem_addr + offset);
+    if (upd.first != node_idx) {
+      printf("upd key %u and node_idx %u do not match in mem_to_wq()\n", upd.first, node_idx);
+      printf("offset = %u size = %u\n", offset, size);
+      throw KeyIncorrectError();
+    }
+    data_vec.push_back(upd.second);
+    offset += serial_update_size;
+  }
+  wq.push(node_idx, data_vec);
+}
+
 flush_ret_t inline GutterTree::flush_leaf_node(flush_struct &flush_from, BufferControlBlock *bcb) {
   uint8_t level = bcb->level;
   if (level == 0) {
-    wq->push(cache + bcb->offset(), bcb->size());
+    mem_to_wq(bcb->min_key, cache + bcb->offset(), bcb->size());
     bcb->set_size();
     bcb->unlock_rw(); // don't need rw lock anymore
     return;
@@ -384,119 +395,11 @@ flush_ret_t inline GutterTree::flush_leaf_node(flush_struct &flush_from, BufferC
     data_to_read -= len;
     offset += len;
   }
-  wq->push(flush_from.read_buffers[level], bcb->size()); // add the data we read to the circular queue
+
+  mem_to_wq(bcb->min_key, flush_from.read_buffers[level], bcb->size()); // add the data we read to the circular queue
     
   // reset the BufferControlBlock
   bcb->set_size();
-}
-
-// ask the gutter_tree for data
-// this function may sleep until data is available
-bool GutterTree::get_data(data_ret_t &data) {
-  File_Pointer idx = 0;
-
-  // make a request to the work_queue for data
-  std::pair<int, queue_ret_t> queue_data;
-  bool got_data = wq->peek(queue_data);
-
-  if (!got_data)
-    return false; // we got no data so return not valid
-
-  int i             = queue_data.first;
-  uint32_t len      = queue_data.second.first;
-  char *serial_data = queue_data.second.second;
-
-  if (len == 0) {
-    wq->pop(i);
-    return false; // we got no data so return not valid
-  }
-
-  data.second.clear(); // remove any old data from the vector
-  uint32_t vec_len  = len / serial_update_size;
-  data.second.reserve(vec_len); // reserve space for our updates
-
-  // assume the first key is correct so extract it
-  node_id_t key = load_key(serial_data);
-  data.first = key;
-
-  while(idx < (uint64_t) len) {
-    update_t upd = deserialize_update(serial_data + idx);
-    // printf("got update: %lu %lu\n", upd.first, upd.second);
-    if (upd.first == 0 && upd.second == 0) {
-      break; // got a null entry so done
-    }
-
-    if (upd.first != key) {
-      // error to handle some weird unlikely gutter_tree shenanigans
-      printf("source node %u and key %u do not match in get_data()\n", upd.first, key);
-      printf("idx = %lu  len = %u\n", idx, len);
-      wq->print();
-      throw KeyIncorrectError();
-    }
-
-    // printf("query to node %lu got edge to node %lu\n", key, upd.second);
-    data.second.push_back(upd.second);
-    idx += serial_update_size;
-  }
-
-  wq->pop(i); // mark the wq entry as clean
-  return true;
-}
-
-// ask the gutter_tree for a batch of data
-// this function may sleep until data is available
-bool GutterTree::get_data_batched(std::vector<data_ret_t> &batched_data, int batch_size) {
-
-  // make a request to the work queue for data
-  std::vector<std::pair<int, queue_ret_t>> queue_data_vec;
-  bool got_data = wq->peek_batch(queue_data_vec, batch_size);
-
-  if (!got_data)
-    return false; // we got no data so return not valid
-
-  batched_data.clear(); // remove any old data from the vector
-  for (auto &queue_data : queue_data_vec) {
-    File_Pointer idx  = 0;
-    int i             = queue_data.first;
-    uint32_t len      = queue_data.second.first;
-    char *serial_data = queue_data.second.second;
-
-    if (len == 0) {
-      wq->pop(i);
-      continue;
-    }
-
-    uint32_t vec_len  = len / serial_update_size;
-    data_ret_t data;
-    data.second.reserve(vec_len); // reserve space for our updates
-
-    // assume the first key is correct so extract it
-    node_id_t key = load_key(serial_data);
-    data.first = key;
-
-    while(idx < (uint64_t) len) {
-      update_t upd = deserialize_update(serial_data + idx);
-      // printf("got update: %lu %lu\n", upd.first, upd.second);
-      if (upd.first == 0 && upd.second == 0) {
-        break; // got a null entry so done
-      }
-
-      if (upd.first != key) {
-        // error to handle some weird unlikely gutter_tree shenanigans
-        printf("source node %u and key %u do not match in get_data()\n", upd.first, key);
-        printf("idx = %lu  len = %u\n", idx, len);
-        wq->print();
-        throw KeyIncorrectError();
-      }
-
-      // printf("query to node %lu got edge to node %lu\n", key, upd.second);
-      data.second.push_back(upd.second);
-      idx += serial_update_size;
-    }
-    batched_data.push_back(data);
-    wq->pop(i); // mark the wq entry as clean
-  }
-  return true;
 }
 
 // Helper function for force flush. This function flushes an entire subtree rooted at one
@@ -574,16 +477,5 @@ flush_ret_t GutterTree::force_flush() {
     lk.unlock();
     if (exit_loop)
       break; // we can now safely return
-  }
-}
-
-void GutterTree::set_non_block(bool block) {
-  if (block) {
-    wq->no_block = true; // circular queue operations should no longer block
-    wq->wq_empty.notify_all();
-    wq->wq_full.notify_all();
-  }
-  else {
-    wq->no_block = false; // set circular queue to block if necessary
   }
 }
