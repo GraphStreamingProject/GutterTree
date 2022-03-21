@@ -94,8 +94,7 @@ target_include_directories(GutterTree PUBLIC include/)
 if (BUILD_EXE)
   add_executable(buffering_tests
     test/runner.cpp
-    test/gutter_tree_test.cpp
-    test/standalone_gutters_test.cpp
+    test/guttering_systems_test.cpp
     # test/cache_gutter_tree_test.cpp
   )
   target_link_libraries(buffering_tests PRIVATE GutterTree)
