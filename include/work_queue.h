@@ -74,7 +74,6 @@ class WorkQueue {
   // functions for checking if the queue is empty or full
   inline bool full()    {return producer_list == nullptr;} // if producer queue empty, wq full
   inline bool empty()   {return consumer_list == nullptr;} // if consumer queue empty, wq empty
-  inline int get_size() {return q_size;}
 
 private:
   DataNode *producer_list = nullptr; // list of nodes ready to be written to
@@ -82,7 +81,6 @@ private:
 
   const int len;
   const int max_elm_size;
-  std::atomic<int> q_size;
 
   // locks and condition variables for producer list
   std::condition_variable producer_condition;

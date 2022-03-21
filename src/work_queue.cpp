@@ -15,7 +15,7 @@ WorkQueue::WorkQueue(int q_len, int max_elm_size) : len(q_len), max_elm_size(max
     node->next = producer_list; // next of node is head
     producer_list = node; // set head to new node
   }
-  q_size = 0;
+  consumer_list_size = 0;
 
   printf("WQ: created work queue with %i elements each of size %i\n", len, max_elm_size);
 }
