@@ -21,8 +21,8 @@ public:
   }
 
   // returns the number of node_id_t types that fit in a sketch
-  static node_id_t upds_per_sketch(node_id_t num_nodes) {
-    return 42 * pow(log2(num_nodes), 2) / (log2(3) - 1); 
+  static size_t upds_per_sketch(node_id_t num_nodes) {
+    return 42 * pow(log2(num_nodes), 2) / (log2(3) - 1);
   }
 
   // get data out of the guttering system either one gutter at a time or in a batched fashion
