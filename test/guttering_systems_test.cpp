@@ -187,7 +187,7 @@ TEST_P(GuttersTest, TinyGutters) {
   GutterConfig conf;
   conf.buffer_exp = 16;
   conf.branch = 16;
-  conf.gutter_factor = -1 * GutteringSystem::sketch_size(nodes);
+  conf.gutter_factor = -1 * GutteringSystem::upds_per_sketch(nodes);
   conf.queue_factor = 1;
   conf.write();
 

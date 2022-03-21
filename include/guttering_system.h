@@ -7,7 +7,7 @@ class GutteringSystem {
 public:
   GutteringSystem(node_id_t num_nodes, int workers, bool page_slots=false) : 
    leaf_gutter_size((configure_system(), 
-      std::max((node_id_t) (gutter_factor * sketch_size(num_nodes)), (node_id_t)1))),
+      std::max((node_id_t) (gutter_factor * upds_per_sketch(num_nodes)), (node_id_t)1))),
    wq(workers * queue_factor,
       page_slots ? leaf_gutter_size + page_size / sizeof(node_id_t) : leaf_gutter_size) {}
   
@@ -21,7 +21,7 @@ public:
   }
 
   // returns the number of node_id_t types that fit in a sketch
-  static node_id_t sketch_size(node_id_t num_nodes) {
+  static node_id_t upds_per_sketch(node_id_t num_nodes) {
     return 42 * pow(log2(num_nodes), 2) / (log2(3) - 1); 
   }
 

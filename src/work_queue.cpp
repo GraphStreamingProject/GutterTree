@@ -22,6 +22,9 @@ WorkQueue::WorkQueue(int q_len, int max_elm_size) : len(q_len), max_elm_size(max
 
 WorkQueue::~WorkQueue() {
   // free data from the queues
+  // grab locks to ensure that list variables aren't old due to cpu caching
+  producer_list_lock.lock();
+  consumer_list_lock.lock();
   while (producer_list != nullptr) {
     DataNode *temp = producer_list;
     producer_list = producer_list->next;
@@ -32,6 +35,8 @@ WorkQueue::~WorkQueue() {
     consumer_list = consumer_list->next;
     delete temp;
   }
+  producer_list_lock.unlock();
+  consumer_list_lock.unlock();
 }
 
 void WorkQueue::push(node_id_t node_idx, std::vector<node_id_t> &upd_vec) {
