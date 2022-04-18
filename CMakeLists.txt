@@ -73,8 +73,8 @@ add_library(GutterTree
   include/buffer_flusher.h
   src/standalone_gutters.cpp
   include/standalone_gutters.h
-  # src/cache_gutter_tree.cpp
-  # include/cache_gutter_tree.h
+  src/cache_guttering.cpp
+  include/cache_guttering.h
   include/types.h)
 add_dependencies(GutterTree GraphZeppelinCommon)
 target_link_libraries(GutterTree PUBLIC gtest GraphZeppelinCommon)
