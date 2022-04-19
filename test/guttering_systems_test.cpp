@@ -5,6 +5,7 @@
 #include <math.h>
 #include "standalone_gutters.h"
 #include "gutter_tree.h"
+#include "cache_guttering.h"
 
 #define KB (1 << 10)
 #define MB (1 << 20)
@@ -15,7 +16,8 @@ static std::atomic<uint32_t> upd_processed;
 
 enum SystemEnum {
   GUTTREE,
-  STANDALONE
+  STANDALONE,
+  CACHETREE
 };
 
 struct GutterConfig {
@@ -50,7 +52,7 @@ static void querier(GutteringSystem *gts, int nodes) {
       std::vector<node_id_t> updates = data->get_data_vec();
       // verify that the updates are all between the correct nodes
       for (auto upd : updates) {
-        // printf("edge to %d\n", upd.first);
+        // printf("edge from %u to %u\n", key, upd);
         ASSERT_EQ(nodes - (key + 1), upd) << "key " << key;
         upd_processed += 1;
       }
@@ -85,7 +87,7 @@ static void batch_querier(GutteringSystem *gts, int nodes, int batch_size) {
 }
 
 class GuttersTest : public testing::TestWithParam<SystemEnum> {};
-INSTANTIATE_TEST_SUITE_P(GutteringTestSuite, GuttersTest, testing::Values(GUTTREE, STANDALONE));
+INSTANTIATE_TEST_SUITE_P(GutteringTestSuite, GuttersTest, testing::Values(GUTTREE, STANDALONE, CACHETREE));
 
 // helper function to run a basic test of the buffer tree with
 // various parameters
@@ -104,8 +106,13 @@ static void run_test(const int nodes, const int num_updates, const int data_work
     system_str = "StandAloneGutters";
     gts = new StandAloneGutters(nodes, data_workers, nthreads);
   }
+  else if (gts_enum == CACHETREE) {
+    system_str = "CacheGuttering";
+    gts = new CacheGuttering(nodes, data_workers, nthreads);
+  }
   else {
     printf("Did not recognize gts_enum!\n");
+    ASSERT_EQ(1, 0);
     exit(EXIT_FAILURE);
   }
   printf("Running Test: system=%s, nodes=%i, num_updates=%i\n",
@@ -246,8 +253,13 @@ TEST_P(GuttersTest, FlushAndInsertAgain) {
     system_str = "StandAloneGutters";
     gts = new StandAloneGutters(nodes, data_workers, 1);
   }
+  else if (gts_enum == CACHETREE) {
+    system_str = "CacheGuttering";
+    gts = new CacheGuttering(nodes, data_workers, 1);
+  }
   else {
     printf("Did not recognize gts_enum!\n");
+    ASSERT_EQ(1, 0);
     exit(EXIT_FAILURE);
   }
   printf("Running Test: system=%s, nodes=%i, num_updates=%i\n",
@@ -304,8 +316,13 @@ TEST_P(GuttersTest, GetDataBatched) {
     system_str = "StandAloneGutters";
     gts = new StandAloneGutters(nodes, data_workers, 1);
   }
+  else if (gts_enum == CACHETREE) {
+    system_str = "CacheGuttering";
+    gts = new CacheGuttering(nodes, data_workers, 1);
+  }
   else {
     printf("Did not recognize gts_enum!\n");
+    ASSERT_EQ(1, 0);
     exit(EXIT_FAILURE);
   }
   printf("Running Test: system=%s, nodes=%i, num_updates=%i\n",
@@ -434,4 +451,13 @@ TEST(StandaloneTest, ParallelInserts) {
   const int nthreads = 10;
 
   run_test(nodes, num_updates, data_workers, STANDALONE, nthreads);
+}
+
+TEST(CacheGutteringTest, ParallelInserts) {
+  const int nodes = 32;
+  const int num_updates = 1000000;
+  const int data_workers = 4;
+  const int nthreads = 10;
+
+  run_test(nodes, num_updates, data_workers, CACHETREE, nthreads);
 }

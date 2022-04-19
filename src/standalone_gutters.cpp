@@ -3,8 +3,8 @@
 #include "../include/standalone_gutters.h"
 #include <omp.h>
 
-StandAloneGutters::StandAloneGutters(node_id_t num_nodes, uint32_t workers, uint32_t inserters) : GutteringSystem(num_nodes, workers), gutters(num_nodes), inserters(inserters) 
-{
+StandAloneGutters::StandAloneGutters(node_id_t num_nodes, uint32_t workers, uint32_t inserters) 
+ : GutteringSystem(num_nodes, workers), gutters(num_nodes), inserters(inserters) {
   for (node_id_t i = 0; i < num_nodes; ++i) {
     gutters[i].buffer.reserve(leaf_gutter_size);
   }
