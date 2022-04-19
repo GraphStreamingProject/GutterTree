@@ -102,7 +102,7 @@ if (BUILD_EXE)
 
   add_executable(buffering_experiment
     experiment/runner.cpp
-  #   experiment/gutter_tree_exp.cpp
+    experiment/cache_exp.cpp
     experiment/standalone_exp.cpp)
   target_link_libraries(buffering_experiment PRIVATE GutterTree)
 endif()
