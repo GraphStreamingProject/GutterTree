@@ -12,8 +12,8 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
  : GutteringSystem(num_nodes, workers), inserters(inserters), num_nodes(num_nodes), 
    l1_pos(ceil(log2(num_nodes))), 
    l2_pos(std::max(l1_pos - l1_bits, 0)), 
-   l3_pos(std::max(l2_pos - l2_bits, 0)),
-   RAM1_pos(std::max(l3_pos - l3_bits, 0)) {
+   l3_pos(std::max(l1_pos - l2_bits, 0)),
+   RAM1_pos(std::max(l1_pos - l3_bits, 0)) {
   
   // initialize storage for inserter threads
   insert_threads.reserve(inserters);
@@ -127,8 +127,10 @@ void CacheGuttering::flush_buf_l3(const node_id_t idx) {
       node_id_t RAM1_idx = extract_left_bits(upd.first, RAM1_pos);
       RAM_Gutter &gutter = RAM1_gutters[RAM1_idx];
       gutter.push_back(upd);
-      if (gutter.size() >= RAM1_buf_elms)
+      if (gutter.size() >= RAM1_buf_elms) {
+        assert(gutter.size() == RAM1_buf_elms);
         flush_RAM_l1(RAM1_idx);
+      }
     }
   }
   l3_gutter.num_elms = 0;
