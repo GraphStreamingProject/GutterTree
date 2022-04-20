@@ -1,5 +1,6 @@
 #include "guttering_system.h"
 #include <array>
+#include <cassert>
 
 // gcc seems to be one of few complilers where log2 is a constexpr 
 // so this is a log2 function that is constexpr (bad performance, only use at compile time)

@@ -1,7 +1,6 @@
 #include "cache_guttering.h"
 
 #include <iostream>
-#include <cassert>
 
 inline static node_id_t extract_left_bits(node_id_t number, int pos) {
   number >>= pos;
