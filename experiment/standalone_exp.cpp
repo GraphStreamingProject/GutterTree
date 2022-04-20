@@ -75,11 +75,11 @@ void run_test(const int nodes, const unsigned long updates, const unsigned int n
 }
 
 TEST(SA_Throughput, kron15_10threads) {
-  run_test(8192, 17542263, 10);
+  run_test(32768, 280025434, 10);
 }
 
 TEST(SA_Throughput, kron15_20threads) {
-  run_test(8192, 17542263, 20);
+  run_test(32768, 280025434, 20);
 }
 
 TEST(SA_Throughput, kron17_10threads) {
