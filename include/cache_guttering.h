@@ -70,6 +70,8 @@ private:
   
     // moving is allowed
     InsertThread (InsertThread &&) = default;
+
+    std::array<int, num_l2_bufs> l2_flush_counts;
   };
 
   // locks for flushing L2 buffers
@@ -114,4 +116,9 @@ public:
    * @return nothing.
    */
   flush_ret_t force_flush();
+
+  /*
+   * Helper function for printing root to leaf paths
+   */
+  void print_r_to_l(node_id_t src);
 };

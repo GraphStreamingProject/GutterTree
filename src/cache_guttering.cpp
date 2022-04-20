@@ -8,12 +8,21 @@ inline static node_id_t extract_left_bits(node_id_t number, int pos) {
   return number;
 }
 
+void CacheGuttering::print_r_to_l(node_id_t src) {
+  std::cout << "src: " << src;
+  std::cout << "->" << extract_left_bits(src, l1_pos);
+  std::cout << "->" << extract_left_bits(src, l2_pos);
+  std::cout << "->" << extract_left_bits(src, l3_pos);
+  std::cout << "->" << extract_left_bits(src, RAM1_pos);
+  std::cout << std::endl;
+}
+
 CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t inserters)
  : GutteringSystem(num_nodes, workers), inserters(inserters), num_nodes(num_nodes), 
-   l1_pos(ceil(log2(num_nodes))), 
-   l2_pos(std::max(l1_pos - l1_bits, 0)), 
-   l3_pos(std::max(l1_pos - l2_bits, 0)),
-   RAM1_pos(std::max(l1_pos - l3_bits, 0)) {
+   l1_pos(ceil(log2(num_nodes)) - l1_bits), 
+   l2_pos(std::max((int)ceil(log2(num_nodes)) - l2_bits, 0)), 
+   l3_pos(std::max((int)ceil(log2(num_nodes)) - l3_bits, 0)),
+   RAM1_pos(std::max((int)ceil(log2(num_nodes)) - RAM1_bits, 0)) {
   
   // initialize storage for inserter threads
   insert_threads.reserve(inserters);
@@ -44,6 +53,9 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
 
   // initialize l2 locks
   L2_flush_locks = new std::mutex[num_l2_bufs];
+
+  // for (node_id_t i = 0; i < num_nodes; i++)
+  //   print_r_to_l(i);
 }
 
 CacheGuttering::~CacheGuttering() {
