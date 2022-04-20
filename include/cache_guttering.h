@@ -9,7 +9,7 @@ private:
   // TODO: use cmake to establish some compiler constants for these variables
   // currently these are the values for evan's laptop ;)
   static constexpr size_t l1_cache_size   = 32768;    // l1 cache bytes per cpu
-  static constexpr size_t l2_cache_size   = 262144;   // l2 cache bytes per cpu
+  static constexpr size_t l2_cache_size   = 1048576;  // l2 cache bytes per cpu
   static constexpr size_t l3_cache_size   = 33554432; // l3 cache bytes in total
   static constexpr size_t cache_line      = 64; // number of bytes in a cache_line
   static constexpr size_t cache_bytes_per_child = 2 * cache_line;
@@ -17,12 +17,12 @@ private:
 
   // basic 'tree' params, hardcoded for now. TODO: Determine by sizes later
   static constexpr size_t fanout          = 32; // fanout for cache level gutters. Must be power of 2
-  static constexpr size_t num_l1_bufs     = 2;
-  static constexpr size_t num_l2_bufs     = 64;
-  static constexpr size_t num_l3_bufs     = 2048;
+  static constexpr size_t num_l1_bufs     = 8;
+  static constexpr size_t num_l2_bufs     = 256;
+  static constexpr size_t num_l3_bufs     = 8192;
   static constexpr size_t max_RAM1_bufs   = num_l3_bufs * fanout;
   static constexpr size_t l1l2buffer_elms = cache_bytes_per_child * fanout / sizeof(update_t);
-  static constexpr size_t l3buffer_elms   = RAM_bytes_per_child * fanout / sizeof(update_t);
+  static constexpr size_t l3buffer_elms   = cache_bytes_per_child * fanout / sizeof(update_t);
 
   // bit length variables
   static constexpr int l1_bits   = ceil(log2(num_l1_bufs));
