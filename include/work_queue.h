@@ -103,14 +103,14 @@ private:
 
 class WriteTooBig : public std::exception {
 private:
-  const int elm_size;
-  const int max_size;
+  const std::string message;
 
 public:
-  WriteTooBig(int elm_size, int max_size) : elm_size(elm_size), max_size(max_size) {}
+  WriteTooBig(int elm_size, int max_size) : 
+    message("WQ: Write is too big " + std::to_string(elm_size) 
+             + " > " + std::to_string(max_size)) {}
 
   virtual const char *what() const throw() {
-    return ("WQ: Write is too big " + std::to_string(elm_size) + " > " + 
-      std::to_string(max_size)).c_str();
+    return message.c_str();
   }
 };

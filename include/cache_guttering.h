@@ -1,6 +1,15 @@
 #include "guttering_system.h"
 #include <array>
 
+// gcc seems to be one of few complilers where log2 is a constexpr 
+// so this is a log2 function that is constexpr (bad performance, only use at compile time)
+// Input 'num' must be a power of 2
+constexpr int log2_constexpr(size_t num) {
+  int power = 0;
+  while (num > 1) { num >>= 1; ++power; }
+  return power;
+}
+
 class CacheGuttering : public GutteringSystem {
 private:
   size_t inserters;
@@ -25,10 +34,10 @@ private:
   static constexpr size_t l3buffer_elms   = cache_bytes_per_child * fanout / sizeof(update_t);
 
   // bit length variables
-  static constexpr int l1_bits   = ceil(log2(num_l1_bufs));
-  static constexpr int l2_bits   = ceil(log2(num_l2_bufs));
-  static constexpr int l3_bits   = ceil(log2(num_l3_bufs));
-  static constexpr int RAM1_bits = ceil(log2(max_RAM1_bufs));
+  static constexpr int l1_bits   = log2_constexpr(num_l1_bufs);
+  static constexpr int l2_bits   = log2_constexpr(num_l2_bufs);
+  static constexpr int l3_bits   = log2_constexpr(num_l3_bufs);
+  static constexpr int RAM1_bits = log2_constexpr(max_RAM1_bufs);
 
   // bit position variables. Depend upon num_nodes
   const int l1_pos;
@@ -104,7 +113,10 @@ public:
    * @param which, which thread is inserting this update
    * @return nothing.
    */
-  insert_ret_t insert(const update_t &upd, int which) { insert_threads[which].insert(upd); }
+  insert_ret_t insert(const update_t &upd, int which) { 
+    assert(which < inserters);
+    insert_threads[which].insert(upd);
+  }
   
   // pure virtual functions don't like default params, so default to 'which' of 0
   insert_ret_t insert(const update_t &upd) { insert_threads[0].insert(upd); }
