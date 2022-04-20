@@ -1,7 +1,10 @@
 #include <cassert>
 #include <fstream>
 #include "../include/standalone_gutters.h"
+
+#ifdef LINUX_FALLOCATE
 #include <omp.h>
+#endif
 
 StandAloneGutters::StandAloneGutters(node_id_t num_nodes, uint32_t workers, uint32_t inserters) 
  : GutteringSystem(num_nodes, workers), gutters(num_nodes), inserters(inserters) {
