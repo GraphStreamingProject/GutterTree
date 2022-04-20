@@ -7,7 +7,7 @@ private:
   node_id_t num_nodes;
 
   // TODO: use cmake to establish some compiler constants for these variables
-  // currently these are the values for evan's laptop ;)
+  // currently these are the values for bigboi
   static constexpr size_t l1_cache_size   = 32768;    // l1 cache bytes per cpu
   static constexpr size_t l2_cache_size   = 1048576;  // l2 cache bytes per cpu
   static constexpr size_t l3_cache_size   = 33554432; // l3 cache bytes in total
@@ -16,10 +16,10 @@ private:
   static constexpr size_t RAM_bytes_per_child   = 8 * cache_line;
 
   // basic 'tree' params, hardcoded for now. TODO: Determine by sizes later
-  static constexpr size_t fanout          = 32; // fanout for cache level gutters. Must be power of 2
-  static constexpr size_t num_l1_bufs     = 8;
-  static constexpr size_t num_l2_bufs     = 256;
-  static constexpr size_t num_l3_bufs     = 8192;
+  static constexpr size_t fanout          = 32;  // fanout for cache gutters. Must be power of 2
+  static constexpr size_t num_l1_bufs     = 8;   // number l1 buffers. Must be power of 2
+  static constexpr size_t num_l2_bufs     = num_l1_bufs * fanout;
+  static constexpr size_t num_l3_bufs     = num_l2_bufs * fanout;
   static constexpr size_t max_RAM1_bufs   = num_l3_bufs * fanout;
   static constexpr size_t l1l2buffer_elms = cache_bytes_per_child * fanout / sizeof(update_t);
   static constexpr size_t l3buffer_elms   = cache_bytes_per_child * fanout / sizeof(update_t);
@@ -50,8 +50,9 @@ private:
 
   class InsertThread {
   private:
-    CacheGuttering &CGsystem;
+    CacheGuttering &CGsystem; // reference to associated CacheGuttering system
 
+    // thread local gutters
     std::array<Cache_Gutter<l1l2buffer_elms>, num_l1_bufs> l1_gutters;
     std::array<Cache_Gutter<l1l2buffer_elms>, num_l2_bufs> l2_gutters;
   public:
@@ -70,8 +71,6 @@ private:
   
     // moving is allowed
     InsertThread (InsertThread &&) = default;
-
-    std::array<int, num_l2_bufs> l2_flush_counts;
   };
 
   // locks for flushing L2 buffers
@@ -118,7 +117,8 @@ public:
   flush_ret_t force_flush();
 
   /*
-   * Helper function for printing root to leaf paths
+   * Helper function for tracing a root to leaf path. Prints path to stdout
+   * @param src   the node id to trace
    */
   void print_r_to_l(node_id_t src);
 };
