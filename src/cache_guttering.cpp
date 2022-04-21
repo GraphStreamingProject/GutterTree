@@ -18,7 +18,7 @@ void CacheGuttering::print_r_to_l(node_id_t src) {
 
 CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t inserters)
  : GutteringSystem(num_nodes, workers), inserters(inserters), num_nodes(num_nodes), 
-   l1_pos(ceil(log2(num_nodes)) - l1_bits), 
+   l1_pos(ceil(log2(num_nodes)) - l1_bits),
    l2_pos(std::max((int)ceil(log2(num_nodes)) - l2_bits, 0)), 
    l3_pos(std::max((int)ceil(log2(num_nodes)) - l3_bits, 0)),
    RAM1_pos(std::max((int)ceil(log2(num_nodes)) - RAM1_bits, 0)) {
@@ -53,6 +53,7 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
   // initialize l2 locks
   L2_flush_locks = new std::mutex[num_l2_bufs];
 
+  // for debugging -- print out root to leaf paths for every id
   // for (node_id_t i = 0; i < num_nodes; i++)
   //   print_r_to_l(i);
 }

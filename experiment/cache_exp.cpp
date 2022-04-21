@@ -126,7 +126,6 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
 TEST(CG_Throughput, kron15_10threads) {
   run_test(32768, 280025434, 10);
 }
-
 TEST(CG_Throughput, kron15_20threads) {
   run_test(32768, 280025434, 20);
 }
@@ -134,9 +133,15 @@ TEST(CG_Throughput, kron15_20threads) {
 TEST(CG_Throughput, kron17_10threads) {
   run_test(131072, 4474931789, 10);
 }
-
 TEST(CG_Throughput, kron17_20threads) {
   run_test(131072, 4474931789, 20);
+}
+
+TEST(CG_Throughput, EpsilonOver_kron17_10threads) {
+  run_test(131073, 4474931789, 10);
+}
+TEST(CG_Throughput, EpsilonOver_kron17_20threads) {
+  run_test(131073, 4474931789, 20);
 }
 
 TEST(CG_Throughput, kron18_10threads) {
@@ -158,6 +163,13 @@ TEST(CG_Throughput_Rand, kron17_10threads) {
 }
 TEST(CG_Throughput_Rand, kron17_20threads) {
   run_randomized(131072, 4474931789, 20);
+}
+
+TEST(CG_Throughput_Rand, EpsilonOver_kron17_10threads) {
+  run_randomized(131073, 4474931789, 10);
+}
+TEST(CG_Throughput_Rand, EpsilonOver_kron17_20threads) {
+  run_randomized(131073, 4474931789, 20);
 }
 
 TEST(CG_Throughput_Rand, kron18_10threads) {
