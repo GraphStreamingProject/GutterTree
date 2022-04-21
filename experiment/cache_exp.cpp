@@ -3,14 +3,14 @@
 #include <chrono>
 #include <atomic>
 #include <fstream>
-#include "../include/standalone_gutters.h"
+#include "../include/cache_guttering.h"
 
 static bool shutdown = false;
 static constexpr uint32_t prime = 100000007;
 
 // queries the guttering system
 // Should be run in a seperate thread
-void querier(GutteringSystem *gts) {
+static void querier(GutteringSystem *gts) {
   WorkQueue::DataNode *data;
   while(true) {
     bool valid = gts->get_data(data);
@@ -20,16 +20,16 @@ void querier(GutteringSystem *gts) {
   }
 }
 
-void write_configuration(int queue_factor, int gutter_factor) {
+static void write_configuration(int queue_factor, int gutter_factor) {
   std::ofstream conf("./buffering.conf");
   conf << "queue_factor=" << queue_factor << std::endl;
   conf << "gutter_factor=" << gutter_factor << std::endl;
 }
 
-void run_randomized(const int nodes, const unsigned long updates, const unsigned int nthreads=1) {
+static void run_randomized(const int nodes, const unsigned long updates, const unsigned int nthreads=1) {
   shutdown = false;
   write_configuration(2, 1); // 2 is queue_factor, 1 is gutter_factor
-  StandAloneGutters *gutters = new StandAloneGutters(nodes, 40, nthreads); // 40 is num workers
+  CacheGuttering *gutters = new CacheGuttering(nodes, 40, nthreads); // 40 is num workers
 
   // create queriers
   std::thread query_threads[40];
@@ -74,10 +74,10 @@ void run_randomized(const int nodes, const unsigned long updates, const unsigned
   delete gutters;
 }
 
-void run_test(const int nodes, const unsigned long updates, const unsigned int nthreads=1) {
+static void run_test(const int nodes, const unsigned long updates, const unsigned int nthreads=1) {
   shutdown = false;
   write_configuration(2, 1); // 2 is queue_factor, 1 is gutter_factor
-  StandAloneGutters *gutters = new StandAloneGutters(nodes, 40, nthreads); // 40 is num workers
+  CacheGuttering *gutters = new CacheGuttering(nodes, 40, nthreads); // 40 is num workers
 
   // create queriers
   std::thread query_threads[40];
@@ -123,44 +123,58 @@ void run_test(const int nodes, const unsigned long updates, const unsigned int n
   delete gutters;
 }
 
-TEST(SA_Throughput, kron15_10threads) {
+TEST(CG_Throughput, kron15_10threads) {
   run_test(32768, 280025434, 10);
 }
-TEST(SA_Throughput, kron15_20threads) {
+TEST(CG_Throughput, kron15_20threads) {
   run_test(32768, 280025434, 20);
 }
 
-TEST(SA_Throughput, kron17_10threads) {
+TEST(CG_Throughput, kron17_10threads) {
   run_test(131072, 4474931789, 10);
 }
-TEST(SA_Throughput, kron17_20threads) {
+TEST(CG_Throughput, kron17_20threads) {
   run_test(131072, 4474931789, 20);
 }
 
-TEST(SA_Throughput, kron18_10threads) {
+TEST(CG_Throughput, EpsilonOver_kron17_10threads) {
+  run_test(131073, 4474931789, 10);
+}
+TEST(CG_Throughput, EpsilonOver_kron17_20threads) {
+  run_test(131073, 4474931789, 20);
+}
+
+TEST(CG_Throughput, kron18_10threads) {
   run_test(262144, 17891985703, 10);
 }
-TEST(SA_Throughput, kron18_20threads) {
+TEST(CG_Throughput, kron18_20threads) {
   run_test(262144, 17891985703, 20);
 }
 
-TEST(SA_Throughput_Rand, kron15_10threads) {
+TEST(CG_Throughput_Rand, kron15_10threads) {
   run_randomized(32768, 280025434, 10);
 }
-TEST(SA_Throughput_Rand, kron15_20threads) {
+TEST(CG_Throughput_Rand, kron15_20threads) {
   run_randomized(32768, 280025434, 20);
 }
 
-TEST(SA_Throughput_Rand, kron17_10threads) {
+TEST(CG_Throughput_Rand, kron17_10threads) {
   run_randomized(131072, 4474931789, 10);
 }
-TEST(SA_Throughput_Rand, kron17_20threads) {
+TEST(CG_Throughput_Rand, kron17_20threads) {
   run_randomized(131072, 4474931789, 20);
 }
 
-TEST(SA_Throughput_Rand, kron18_10threads) {
+TEST(CG_Throughput_Rand, EpsilonOver_kron17_10threads) {
+  run_randomized(131073, 4474931789, 10);
+}
+TEST(CG_Throughput_Rand, EpsilonOver_kron17_20threads) {
+  run_randomized(131073, 4474931789, 20);
+}
+
+TEST(CG_Throughput_Rand, kron18_10threads) {
   run_randomized(262144, 17891985703, 10);
 }
-TEST(SA_Throughput_Rand, kron18_20threads) {
+TEST(CG_Throughput_Rand, kron18_20threads) {
   run_randomized(262144, 17891985703, 20);
 }

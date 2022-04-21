@@ -73,8 +73,8 @@ add_library(GutterTree
   include/buffer_flusher.h
   src/standalone_gutters.cpp
   include/standalone_gutters.h
-  # src/cache_gutter_tree.cpp
-  # include/cache_gutter_tree.h
+  src/cache_guttering.cpp
+  include/cache_guttering.h
   include/types.h)
 add_dependencies(GutterTree GraphZeppelinCommon)
 target_link_libraries(GutterTree PUBLIC gtest GraphZeppelinCommon)
@@ -82,7 +82,7 @@ target_link_libraries(GutterTree PUBLIC gtest GraphZeppelinCommon)
 if (UNIX AND NOT APPLE)
   message(STATUS "Enabling Fallocate for a linux system")
   target_link_options(GutterTree PUBLIC -fopenmp)
-  target_compile_options(GutterTree PRIVATE -DLINUX_FALLOCATE)
+  target_compile_options(GutterTree PRIVATE -fopenmp -DLINUX_FALLOCATE)
 elseif(WIN32)
   message(STATUS "Using fileapi for Windows")
   target_compile_options(GutterTree PRIVATE -DWINDOWS_FILEAPI)
@@ -102,7 +102,7 @@ if (BUILD_EXE)
 
   add_executable(buffering_experiment
     experiment/runner.cpp
-  #   experiment/gutter_tree_exp.cpp
+    experiment/cache_exp.cpp
     experiment/standalone_exp.cpp)
   target_link_libraries(buffering_experiment PRIVATE GutterTree)
 endif()
