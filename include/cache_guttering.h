@@ -22,17 +22,15 @@ private:
   static constexpr size_t l2_cache_size   = 1048576;  // l2 cache bytes per cpu
   static constexpr size_t l3_cache_size   = 33554432; // l3 cache bytes in total
   static constexpr size_t cache_line      = 64; // number of bytes in a cache_line
-  static constexpr size_t cache_bytes_per_child = 2 * cache_line;
-  static constexpr size_t RAM_bytes_per_child   = 8 * cache_line;
+  static constexpr size_t bytes_per_child[4] = {cache_line, 2*cache_line, 4*cache_line, 16*cache_line};
 
   // basic 'tree' params, hardcoded for now. TODO: Determine by sizes later
-  static constexpr size_t fanout          = 32;  // fanout for cache gutters. Must be power of 2
-  static constexpr size_t num_l1_bufs     = 8;   // number l1 buffers. Must be power of 2
+  static constexpr size_t fanout          = 16;  // fanout for cache gutters. Must be power of 2
+  static constexpr size_t num_l1_bufs     = 64;  // number l1 buffers. Must be power of 2
   static constexpr size_t num_l2_bufs     = num_l1_bufs * fanout;
   static constexpr size_t num_l3_bufs     = num_l2_bufs * fanout;
   static constexpr size_t max_RAM1_bufs   = num_l3_bufs * fanout;
-  static constexpr size_t l1l2buffer_elms = cache_bytes_per_child * fanout / sizeof(update_t);
-  static constexpr size_t l3buffer_elms   = cache_bytes_per_child * fanout / sizeof(update_t);
+  static constexpr size_t buffer_size[3] = {bytes_per_child[0] * fanout, bytes_per_child[1] * fanout, bytes_per_child[2] * fanout};
 
   // bit length variables
   static constexpr int l1_bits   = log2_constexpr(num_l1_bufs);
@@ -63,8 +61,8 @@ private:
     CacheGuttering &CGsystem; // reference to associated CacheGuttering system
 
     // thread local gutters
-    std::array<Cache_Gutter<l1l2buffer_elms>, num_l1_bufs> l1_gutters;
-    std::array<Cache_Gutter<l1l2buffer_elms>, num_l2_bufs> l2_gutters;
+    std::array<Cache_Gutter<bytes_per_child[0] * fanout>, num_l1_bufs> l1_gutters;
+    std::array<Cache_Gutter<bytes_per_child[1] * fanout>, num_l2_bufs> l2_gutters;
   public:
     InsertThread(CacheGuttering &CGsystem) : CGsystem(CGsystem) {};
 
@@ -87,7 +85,7 @@ private:
   std::mutex *L2_flush_locks;
 
   // buffers shared amongst all threads
-  std::array<Cache_Gutter<l3buffer_elms>, num_l3_bufs> l3_gutters; // shared cache layer in L3
+  std::array<Cache_Gutter<bytes_per_child[2] * fanout>, num_l3_bufs> l3_gutters; // shared cache layer in L3
   RAM_Gutter *RAM1_gutters = nullptr; // additional RAM layer if necessary
   Leaf_Gutter *leaf_gutters;          // final layer that holds node gutters
 

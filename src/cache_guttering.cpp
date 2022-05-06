@@ -34,7 +34,7 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
     RAM1_fanout = num_nodes / max_RAM1_bufs;
     RAM1_fanout += num_nodes % max_RAM1_bufs == 0 ? 0 : 1;
 
-    RAM1_buf_elms = RAM1_fanout * RAM_bytes_per_child / sizeof(update_t);
+    RAM1_buf_elms = RAM1_fanout * bytes_per_child[3] / sizeof(update_t);
 
     std::cout << "Using RAM1 buffer" << std::endl;
     std::cout << "RAM1 fanout   = " << RAM1_fanout << std::endl;
@@ -72,7 +72,7 @@ void CacheGuttering::InsertThread::insert(const update_t &upd) {
   // std::cout << "Handling update " << upd.first << ", " << upd.second << std::endl;
   // std::cout << "Placing in L1 buffer " << l1_idx << ", num_elms = " << gutter.num_elms << std::endl;
 
-  if (gutter.num_elms >= l1l2buffer_elms) {
+  if (gutter.num_elms >= buffer_size[0]) {
     // std::cout << "Flushing L1 gutter" << std::endl;
     flush_buf_l1(l1_idx);
   }
@@ -85,7 +85,7 @@ void CacheGuttering::InsertThread::flush_buf_l1(const node_id_t idx) {
     node_id_t l2_idx = extract_left_bits(upd.first, CGsystem.l2_pos);
     auto &l2_gutter = l2_gutters[l2_idx];
     l2_gutter.data[l2_gutter.num_elms++] = upd;
-    if (l2_gutter.num_elms >= l1l2buffer_elms)
+    if (l2_gutter.num_elms >= buffer_size[1])
       flush_buf_l2(l2_idx);
   }
   l1_gutter.num_elms = 0;
@@ -107,7 +107,7 @@ void CacheGuttering::InsertThread::flush_buf_l2(const node_id_t idx) {
     // }
     auto &l3_gutter = CGsystem.l3_gutters[l3_idx];
     l3_gutter.data[l3_gutter.num_elms++] = upd;
-    if (l3_gutter.num_elms >= l3buffer_elms)
+    if (l3_gutter.num_elms >= buffer_size[2])
       CGsystem.flush_buf_l3(l3_idx);
   }
 
