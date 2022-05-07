@@ -21,22 +21,21 @@ private:
   static constexpr size_t l1_cache_size   = 32768;    // l1 cache bytes per cpu
   static constexpr size_t l2_cache_size   = 1048576;  // l2 cache bytes per cpu
   static constexpr size_t l3_cache_size   = 33554432; // l3 cache bytes in total
+
+  static constexpr size_t cache_sizes[3] = {32768, 1048576, 33554432};
   static constexpr size_t cache_line      = 64; // number of bytes in a cache_line
-  static constexpr size_t bytes_per_child[4] = {cache_line, 2*cache_line, 4*cache_line, 16*cache_line};
+  static constexpr size_t divisor         = 1;
+  
+  static constexpr size_t buf_bytes[4] = {cache_line, 2*cache_line, 4*cache_line, 16*cache_line};
+  static constexpr size_t buf_elems[4] = {buf_bytes[0] / sizeof(update_t), buf_bytes[1] / sizeof(update_t),
+    buf_bytes[2] / sizeof(update_t), buf_bytes[3] / sizeof(update_t)};
 
-  // basic 'tree' params, hardcoded for now. TODO: Determine by sizes later
-  static constexpr size_t fanout          = 16;  // fanout for cache gutters. Must be power of 2
-  static constexpr size_t num_l1_bufs     = 64;  // number l1 buffers. Must be power of 2
-  static constexpr size_t num_l2_bufs     = num_l1_bufs * fanout;
-  static constexpr size_t num_l3_bufs     = num_l2_bufs * fanout;
-  static constexpr size_t max_RAM1_bufs   = num_l3_bufs * fanout;
-  static constexpr size_t buffer_size[3] = {bytes_per_child[0] * fanout, bytes_per_child[1] * fanout, bytes_per_child[2] * fanout};
-
-  // bit length variables
-  static constexpr int l1_bits   = log2_constexpr(num_l1_bufs);
-  static constexpr int l2_bits   = log2_constexpr(num_l2_bufs);
-  static constexpr int l3_bits   = log2_constexpr(num_l3_bufs);
-  static constexpr int RAM1_bits = log2_constexpr(max_RAM1_bufs);
+  static constexpr size_t num_bufs[3] = {cache_sizes[0] / (buf_bytes[0] * divisor), cache_sizes[1] / (buf_bytes[1] * divisor), 
+    cache_sizes[2] / (buf_bytes[2] * divisor)};
+  static constexpr size_t max_RAM1_bufs = num_bufs[2] * 32;
+  
+  static constexpr int bits[4] = {log2_constexpr(num_bufs[0]), log2_constexpr(num_bufs[1]), 
+    log2_constexpr(num_bufs[2]), log2_constexpr(max_RAM1_bufs)};
 
   // bit position variables. Depend upon num_nodes
   const int l1_pos;
@@ -44,7 +43,6 @@ private:
   const int l3_pos;
   const int RAM1_pos;
 
-  // some params for RAM1 if it is necessary
   size_t RAM1_fanout   = 0;
   size_t RAM1_buf_elms = 0;
 
@@ -61,8 +59,8 @@ private:
     CacheGuttering &CGsystem; // reference to associated CacheGuttering system
 
     // thread local gutters
-    std::array<Cache_Gutter<bytes_per_child[0] * fanout>, num_l1_bufs> l1_gutters;
-    std::array<Cache_Gutter<bytes_per_child[1] * fanout>, num_l2_bufs> l2_gutters;
+    std::array<Cache_Gutter<buf_elems[0]>, num_bufs[0]> l1_gutters;
+    std::array<Cache_Gutter<buf_elems[1]>, num_bufs[1]> l2_gutters;
   public:
     InsertThread(CacheGuttering &CGsystem) : CGsystem(CGsystem) {};
 
@@ -85,7 +83,7 @@ private:
   std::mutex *L2_flush_locks;
 
   // buffers shared amongst all threads
-  std::array<Cache_Gutter<bytes_per_child[2] * fanout>, num_l3_bufs> l3_gutters; // shared cache layer in L3
+  std::array<Cache_Gutter<buf_elems[2]>, num_bufs[2]> l3_gutters; // shared cache layer in L3
   RAM_Gutter *RAM1_gutters = nullptr; // additional RAM layer if necessary
   Leaf_Gutter *leaf_gutters;          // final layer that holds node gutters
 
@@ -108,7 +106,7 @@ public:
 
   /**
    * Puts an update into the data structure.
-   * @param upd the edge update.
+   * @param upd the edge update.1
    * @param which, which thread is inserting this update
    * @return nothing.
    */
@@ -132,4 +130,5 @@ public:
    * @param src   the node id to trace
    */
   void print_r_to_l(node_id_t src);
+  void print_fanouts();
 };
