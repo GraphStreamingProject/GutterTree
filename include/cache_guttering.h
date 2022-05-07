@@ -24,14 +24,15 @@ private:
 
   static constexpr size_t cache_sizes[3] = {32768, 1048576, 33554432};
   static constexpr size_t cache_line      = 64; // number of bytes in a cache_line
+  static constexpr size_t numerator         = 1;
   static constexpr size_t divisor         = 1;
   
-  static constexpr size_t buf_bytes[4] = {16*cache_line, 32*cache_line, 128*cache_line, 512*cache_line};
+  static constexpr size_t buf_bytes[4] = {2*cache_line, 4*cache_line, 8*cache_line, 16*cache_line};
   static constexpr size_t buf_elems[4] = {buf_bytes[0] / sizeof(update_t), buf_bytes[1] / sizeof(update_t),
     buf_bytes[2] / sizeof(update_t), buf_bytes[3] / sizeof(update_t)};
 
-  static constexpr size_t num_bufs[3] = {cache_sizes[0] / (buf_bytes[0] * divisor), cache_sizes[1] / (buf_bytes[1] * divisor), 
-    cache_sizes[2] / (buf_bytes[2] * divisor)};
+  static constexpr size_t num_bufs[3] = {numerator * cache_sizes[0] / (buf_bytes[0] * divisor), numerator * cache_sizes[1] / (buf_bytes[1] * divisor), 
+    numerator * cache_sizes[2] / (buf_bytes[2] * divisor)};
   static constexpr size_t max_RAM1_bufs = num_bufs[2] * 32;
   
   static constexpr int bits[4] = {log2_constexpr(num_bufs[0]), log2_constexpr(num_bufs[1]), 

@@ -21,7 +21,20 @@ void CacheGuttering::print_fanouts() {
   std::cout << "L1->L2: " << num_bufs[1]/num_bufs[0] << std::endl;
   std::cout << "L2->L3: " << num_bufs[2]/num_bufs[1] << std::endl;
   if (RAM1_gutters)
-  std::cout << "L3->RM: " << max_RAM1_bufs/num_bufs[2] << std::endl;
+	{
+		std::cout << "L3->RAM1: " << max_RAM1_bufs/num_bufs[2] << std::endl;
+		std::cout << "RAM1->RAM: " << num_nodes/max_RAM1_bufs << std::endl;
+	}
+	else
+		std::cout << "L3->RAM: " << num_nodes/num_bufs[2] << std::endl;
+
+
+  std::cout << "L1: " << num_bufs[0] << std::endl;
+  std::cout << "L2: " << num_bufs[1] << std::endl;
+  std::cout << "L3: " << num_bufs[2] << std::endl;
+  if (RAM1_gutters)
+		std::cout << "RAM1: " << max_RAM1_bufs << std::endl;
+  std::cout << "RAM: " << num_nodes << std::endl;
   std::cout << std::endl;
 }
 
