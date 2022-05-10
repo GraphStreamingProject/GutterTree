@@ -17,24 +17,37 @@ void CacheGuttering::print_r_to_l(node_id_t src) {
   std::cout << std::endl;
 }
 
-void CacheGuttering::print_fanouts() {
-  std::cout << "L1->L2: " << num_bufs[1]/num_bufs[0] << std::endl;
-  std::cout << "L2->L3: " << num_bufs[2]/num_bufs[1] << std::endl;
+void CacheGuttering::print_info() {
+  std::cout << "Fanout:" << std::endl;
+  std::cout << "\tL1->L2: " << num_bufs[1]/num_bufs[0] << std::endl;
+  std::cout << "\tL2->L3: " << num_bufs[2]/num_bufs[1] << std::endl;
   if (RAM1_gutters)
 	{
-		std::cout << "L3->RAM1: " << max_RAM1_bufs/num_bufs[2] << std::endl;
-		std::cout << "RAM1->RAM: " << num_nodes/max_RAM1_bufs << std::endl;
+		std::cout << "\tL3->RAM1: " << max_RAM1_bufs/num_bufs[2] << std::endl;
+		std::cout << "\tRAM1->RAM: " << num_nodes/max_RAM1_bufs << std::endl;
 	}
 	else
-		std::cout << "L3->RAM: " << num_nodes/num_bufs[2] << std::endl;
-
-
-  std::cout << "L1: " << num_bufs[0] << std::endl;
-  std::cout << "L2: " << num_bufs[1] << std::endl;
-  std::cout << "L3: " << num_bufs[2] << std::endl;
+		std::cout << "\tL3->RAM: " << num_nodes/num_bufs[2] << std::endl;
+  
+	std::cout << "elems per child:" << std::endl;
+  std::cout << "\tL1->L2: " << buf_elems[0] / ((double)num_bufs[1]/num_bufs[0]) << std::endl;
+  std::cout << "\tL2->L3: " << buf_elems[1] / ((double)num_bufs[2]/num_bufs[1]) << std::endl;
   if (RAM1_gutters)
-		std::cout << "RAM1: " << max_RAM1_bufs << std::endl;
-  std::cout << "RAM: " << num_nodes << std::endl;
+	{
+		std::cout << "\tL3->RAM1: " << buf_elems[2] / ((double)max_RAM1_bufs/num_bufs[2]) << std::endl;
+		std::cout << "\tRAM1->RAM: " << buf_elems[3] / ((double)num_nodes/max_RAM1_bufs) << std::endl;
+	}
+	else
+		std::cout << "\tL3->RAM: " << buf_elems[2] / ((double)num_nodes/num_bufs[2]) << std::endl;
+
+
+  std::cout << "Number of buffers:" << std::endl;
+  std::cout << "\tL1: " << num_bufs[0] << std::endl;
+  std::cout << "\tL2: " << num_bufs[1] << std::endl;
+  std::cout << "\tL3: " << num_bufs[2] << std::endl;
+  if (RAM1_gutters)
+		std::cout << "\tRAM1: " << max_RAM1_bufs << std::endl;
+  std::cout << "\tRAM: " << num_nodes << std::endl;
   std::cout << std::endl;
 }
 
@@ -78,7 +91,7 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
   // for debugging -- print out root to leaf paths for every id
   //for (node_id_t i = 0; i < num_nodes; i++)
   //  print_r_to_l(i);
-  print_fanouts();
+  print_info();
 }
 
 CacheGuttering::~CacheGuttering() {

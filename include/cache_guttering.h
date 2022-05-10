@@ -20,21 +20,25 @@ private:
   // currently these are the values for bigboi
   static constexpr size_t l1_cache_size   = 32768;    // l1 cache bytes per cpu
   static constexpr size_t l2_cache_size   = 1048576;  // l2 cache bytes per cpu
-  static constexpr size_t l3_cache_size   = 33554432; // l3 cache bytes in total
+  static constexpr size_t l3_cache_size   =  33554432; // l3 cache bytes in total
 
-  static constexpr size_t cache_sizes[3] = {32768, 1048576, 33554432};
+  static constexpr size_t cache_sizes[3] = {l1_cache_size, l2_cache_size, l3_cache_size};
   static constexpr size_t cache_line      = 64; // number of bytes in a cache_line
-  static constexpr size_t numerator         = 1;
-  static constexpr size_t divisor         = 1;
+  static constexpr size_t mult         = 1;		// Over or undersubscribe the cache
   
-  static constexpr size_t buf_bytes[4] = {2*cache_line, 4*cache_line, 8*cache_line, 16*cache_line};
+	// The size of a buffer in bytes.
+  static constexpr size_t buf_bytes[4] = {32*cache_line, 64*cache_line, 128*cache_line, 256*cache_line};
+	// The number of buffer elements per buffer
   static constexpr size_t buf_elems[4] = {buf_bytes[0] / sizeof(update_t), buf_bytes[1] / sizeof(update_t),
     buf_bytes[2] / sizeof(update_t), buf_bytes[3] / sizeof(update_t)};
 
-  static constexpr size_t num_bufs[3] = {numerator * cache_sizes[0] / (buf_bytes[0] * divisor), numerator * cache_sizes[1] / (buf_bytes[1] * divisor), 
-    numerator * cache_sizes[2] / (buf_bytes[2] * divisor)};
+	// The number of buffers per cache level
+  static constexpr size_t num_bufs[3] = {mult * (cache_sizes[0] / buf_bytes[0]), mult * (cache_sizes[1] / buf_bytes[1]), mult * (cache_sizes[2] / buf_bytes[2])};
+	
+	// Number of RAM buffers per cache level
   static constexpr size_t max_RAM1_bufs = num_bufs[2] * 32;
   
+	// The number of bits needed to index into num_bufs
   static constexpr int bits[4] = {log2_constexpr(num_bufs[0]), log2_constexpr(num_bufs[1]), 
     log2_constexpr(num_bufs[2]), log2_constexpr(max_RAM1_bufs)};
 
@@ -131,5 +135,8 @@ public:
    * @param src   the node id to trace
    */
   void print_r_to_l(node_id_t src);
-  void print_fanouts();
+  /*
+   * Helper function for printing tree structure statistics
+   */
+  void print_info();
 };
