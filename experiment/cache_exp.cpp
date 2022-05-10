@@ -11,93 +11,93 @@ static constexpr uint32_t prime = 100000007;
 // queries the guttering system
 // Should be run in a seperate thread
 static void querier(GutteringSystem *gts) {
-	WorkQueue::DataNode *data;
-	while(true) {
-		bool valid = gts->get_data(data);
-		if(!valid && shutdown)
-			return;
-		gts->get_data_callback(data);
-	}
+  WorkQueue::DataNode *data;
+  while(true) {
+    bool valid = gts->get_data(data);
+    if(!valid && shutdown)
+      return;
+    gts->get_data_callback(data);
+  }
 }
 
 static void write_configuration(int queue_factor, int gutter_factor) {
-	std::ofstream conf("./buffering.conf");
-	conf << "queue_factor=" << queue_factor << std::endl;
-	conf << "gutter_factor=" << gutter_factor << std::endl;
+  std::ofstream conf("./buffering.conf");
+  conf << "queue_factor=" << queue_factor << std::endl;
+  conf << "gutter_factor=" << gutter_factor << std::endl;
 }
 
 static void run_randomized(const int nodes, const unsigned long updates, const unsigned int nthreads=1) {
-	shutdown = false;
-	write_configuration(2, 1); // 2 is queue_factor, 1 is gutter_factor
-	CacheGuttering *gutters = new CacheGuttering(nodes, 40, nthreads); // 40 is num workers
+  shutdown = false;
+  write_configuration(2, 1); // 2 is queue_factor, 1 is gutter_factor
+  CacheGuttering *gutters = new CacheGuttering(nodes, 40, nthreads); // 40 is num workers
 
-	// create queriers
-	std::thread query_threads[40];
-	for (int t = 0; t < 40; t++) {
-		query_threads[t] = std::thread(querier, gutters);
-	}
+  // create queriers
+  std::thread query_threads[40];
+  for (int t = 0; t < 40; t++) {
+    query_threads[t] = std::thread(querier, gutters);
+  }
 
-	std::vector<std::thread> threads;
-	threads.reserve(nthreads);
-	const unsigned long work_per = (updates + (nthreads-1)) / nthreads;
-	printf("work per thread: %lu\n", work_per);
+  std::vector<std::thread> threads;
+  threads.reserve(nthreads);
+  const unsigned long work_per = (updates + (nthreads-1)) / nthreads;
+  printf("work per thread: %lu\n", work_per);
 
-	auto task = [&](const unsigned int j){
-		for (unsigned long i = j * work_per; i < (j+1) * work_per && i < updates; i++) {
-			if(i % 1000000000 == 0)
-				printf("processed so far: %lu\n", i);
-			update_t upd;
-			upd.first = (i * prime) % nodes;
-			upd.second = (nodes - 1) - upd.first;
-			gutters->insert(upd, j);
-			std::swap(upd.first, upd.second);
-			gutters->insert(upd, j);
-		}
-	};
+  auto task = [&](const unsigned int j){
+    for (unsigned long i = j * work_per; i < (j+1) * work_per && i < updates; i++) {
+      if(i % 1000000000 == 0)
+        printf("processed so far: %lu\n", i);
+      update_t upd;
+      upd.first = (i * prime) % nodes;
+      upd.second = (nodes - 1) - upd.first;
+      gutters->insert(upd, j);
+      std::swap(upd.first, upd.second);
+      gutters->insert(upd, j);
+    }
+  };
 
-	auto start = std::chrono::steady_clock::now();
-	//Spin up then join threads
-	for (unsigned int j = 0; j < nthreads; j++)
-	{
-		threads.emplace_back(task, j);
-		cpu_set_t cpuset;
-		CPU_ZERO(&cpuset);
-		CPU_SET(j, &cpuset);
-		int rc = pthread_setaffinity_np(threads[j].native_handle(),
-				sizeof(cpu_set_t), &cpuset);
-		if (rc != 0) {
-			std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
-		}
-	}
-	for (unsigned int j = 0; j < nthreads; j++)
-		threads[j].join();
+  auto start = std::chrono::steady_clock::now();
+  //Spin up then join threads
+  for (unsigned int j = 0; j < nthreads; j++)
+  {
+    threads.emplace_back(task, j);
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(j, &cpuset);
+    int rc = pthread_setaffinity_np(threads[j].native_handle(),
+        sizeof(cpu_set_t), &cpuset);
+    if (rc != 0) {
+      std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    }
+  }
+  for (unsigned int j = 0; j < nthreads; j++)
+    threads[j].join();
 
-	gutters->force_flush();
-	shutdown = true;
-	gutters->set_non_block(true); // switch to non-blocking calls in an effort to exit
+  gutters->force_flush();
+  shutdown = true;
+  gutters->set_non_block(true); // switch to non-blocking calls in an effort to exit
 
-	std::chrono::duration<double> delta = std::chrono::steady_clock::now() - start;
-	printf("Insertions took %f seconds: average rate = %f\n", delta.count(), updates/delta.count());
+  std::chrono::duration<double> delta = std::chrono::steady_clock::now() - start;
+  printf("Insertions took %f seconds: average rate = %f\n", delta.count(), updates/delta.count());
 
-	for (int t = 0; t < 40; t++)
-		query_threads[t].join();
-	delete gutters;
+  for (int t = 0; t < 40; t++)
+    query_threads[t].join();
+  delete gutters;
 }
 
 static void run_test(const int nodes, const unsigned long updates, const unsigned int nthreads=1) {
-	shutdown = false;
-	write_configuration(2, 1); // 2 is queue_factor, 1 is gutter_factor
-	CacheGuttering *gutters = new CacheGuttering(nodes, 40, nthreads); // 40 is num workers
+  shutdown = false;
+  write_configuration(2, 1); // 2 is queue_factor, 1 is gutter_factor
+  CacheGuttering *gutters = new CacheGuttering(nodes, 40, nthreads); // 40 is num workers
 
-	// create queriers
-	std::thread query_threads[40];
-	for (int t = 0; t < 40; t++) {
-		query_threads[t] = std::thread(querier, gutters);
-	}
+  // create queriers
+  std::thread query_threads[40];
+  for (int t = 0; t < 40; t++) {
+    query_threads[t] = std::thread(querier, gutters);
+  }
 
-	std::vector<std::thread> threads;
-	threads.reserve(nthreads);
-	const unsigned long work_per = (updates + (nthreads-1)) / nthreads;
+  std::vector<std::thread> threads;
+  threads.reserve(nthreads);
+  const unsigned long work_per = (updates + (nthreads-1)) / nthreads;
   printf("work per thread: %lu\n", work_per);
 
   auto task = [&](const unsigned int j){
@@ -119,14 +119,14 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
   for (unsigned int j = 0; j < nthreads; j++)
 {
     threads.emplace_back(task, j);
-		cpu_set_t cpuset;
-		CPU_ZERO(&cpuset);
-		CPU_SET(j, &cpuset);
-		int rc = pthread_setaffinity_np(threads[j].native_handle(),
-				sizeof(cpu_set_t), &cpuset);
-		if (rc != 0) {
-			std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
-		}
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(j, &cpuset);
+    int rc = pthread_setaffinity_np(threads[j].native_handle(),
+        sizeof(cpu_set_t), &cpuset);
+    if (rc != 0) {
+      std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    }
 }
   for (unsigned int j = 0; j < nthreads; j++)
     threads[j].join();

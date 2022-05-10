@@ -183,13 +183,13 @@ void CacheGuttering::force_flush() {
       thr.flush_buf_l2(i);
     for (size_t i = 0; i < level3_bufs; i++)
       thr.flush_buf_l3(i);
-	};
+  };
   
-	// flush thread local buffers in parallel
+  // flush thread local buffers in parallel
   std::vector<std::thread> threads;
   threads.reserve(inserters);
-	for (int i = 0; i < inserters; i++)
-		threads.emplace_back(flush_task, i);
+  for (int i = 0; i < inserters; i++)
+    threads.emplace_back(flush_task, i);
   
   for (int i = 0; i < inserters; i++)
     threads[i].join();

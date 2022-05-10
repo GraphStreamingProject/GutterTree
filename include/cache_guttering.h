@@ -59,7 +59,7 @@ private:
   };
 
   class InsertThread {
-	  public:
+    public:
     CacheGuttering &CGsystem; // reference to associated CacheGuttering system
 
     // thread local gutters
