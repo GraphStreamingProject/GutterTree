@@ -9,62 +9,41 @@ inline static node_id_t extract_left_bits(node_id_t number, int pos) {
 
 void CacheGuttering::print_r_to_l(node_id_t src) {
   std::cout << "src: " << src;
-  std::cout << "->(L1)" << extract_left_bits(src, l1_pos);
-  std::cout << "->(L2)" << extract_left_bits(src, l2_pos);
-  std::cout << "->(L3)" << extract_left_bits(src, l3_pos);
-  if (RAM1_gutters)
-    std::cout << "->(RM)" << extract_left_bits(src, RAM1_pos);
-  std::cout << std::endl;
-}
-
-void CacheGuttering::print_fanouts() {
-  std::cout << "L1->L2: " << num_bufs[1]/num_bufs[0] << std::endl;
-  std::cout << "L2->L3: " << num_bufs[2]/num_bufs[1] << std::endl;
-  if (RAM1_gutters)
-	{
-		std::cout << "L3->RAM1: " << max_RAM1_bufs/num_bufs[2] << std::endl;
-		std::cout << "RAM1->RAM: " << num_nodes/max_RAM1_bufs << std::endl;
-	}
-	else
-		std::cout << "L3->RAM: " << num_nodes/num_bufs[2] << std::endl;
-
-
-  std::cout << "L1: " << num_bufs[0] << std::endl;
-  std::cout << "L2: " << num_bufs[1] << std::endl;
-  std::cout << "L3: " << num_bufs[2] << std::endl;
-  if (RAM1_gutters)
-		std::cout << "RAM1: " << max_RAM1_bufs << std::endl;
-  std::cout << "RAM: " << num_nodes << std::endl;
+  std::cout << "->(L1)" << extract_left_bits(src, level1_pos);
+  std::cout << "->(L2)" << extract_left_bits(src, level2_pos);
+  std::cout << "->(L3)" << extract_left_bits(src, level3_pos);
+  if (level4_gutters)
+    std::cout << "->(RM)" << extract_left_bits(src, level4_pos);
   std::cout << std::endl;
 }
 
 CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t inserters)
  : GutteringSystem(num_nodes, workers), inserters(inserters), num_nodes(num_nodes), 
-   l1_pos(ceil(log2(num_nodes)) - bits[0]),
-   l2_pos(std::max((int)ceil(log2(num_nodes)) - bits[1], 0)), 
-   l3_pos(std::max((int)ceil(log2(num_nodes)) - bits[2], 0)),
-   RAM1_pos(std::max((int)ceil(log2(num_nodes)) - bits[3], 0)) {
+   level1_pos(ceil(log2(num_nodes)) - level1_bits),
+   level2_pos(std::max((int)ceil(log2(num_nodes)) - level2_bits, 0)), 
+   level3_pos(std::max((int)ceil(log2(num_nodes)) - level3_bits, 0)),
+   level4_pos(std::max((int)ceil(log2(num_nodes)) - level4_bits, 0)) {
   
   // initialize storage for inserter threads
   insert_threads.reserve(inserters);
   for (uint32_t t = 0; t < inserters; t++) 
     insert_threads.emplace_back(*this);
 
-  // initialize RAM1_gutters if necessary
-  if (max_RAM1_bufs < num_nodes) {
+  // initialize level4_gutters if necessary
+  if (max_level4_bufs < num_nodes) {
 
-    RAM1_fanout = num_nodes / max_RAM1_bufs;
-    RAM1_fanout += num_nodes % max_RAM1_bufs == 0 ? 0 : 1;
+    level4_fanout = num_nodes / max_level4_bufs;
+    level4_fanout += num_nodes % max_level4_bufs == 0 ? 0 : 1;
 
-    RAM1_buf_elms = RAM1_fanout * num_bufs[2] / sizeof(update_t);
+    level4_buf_elms = level4_fanout * block_size / sizeof(update_t);
 
     std::cout << "Using RAM1 buffer" << std::endl;
-    std::cout << "RAM1 fanout   = " << RAM1_fanout << std::endl;
-    std::cout << "RAM1 elements = " << RAM1_buf_elms << std::endl;
+    std::cout << "RAM1 fanout   = " << level4_fanout << std::endl;
+    std::cout << "RAM1 elements = " << level4_buf_elms << std::endl;
 
-    RAM1_gutters = new RAM_Gutter[max_RAM1_bufs];
-    for (node_id_t i = 0; i < max_RAM1_bufs; ++i)
-      RAM1_gutters[i].reserve(RAM1_buf_elms);
+    level4_gutters = new RAM_Gutter[max_level4_bufs];
+    for (node_id_t i = 0; i < max_level4_bufs; ++i)
+      level4_gutters[i].reserve(level4_buf_elms);
   }
 
   // initialize leaf gutters
@@ -72,86 +51,85 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
   for (node_id_t i = 0; i < num_nodes; ++i)
     leaf_gutters[i].reserve(leaf_gutter_size);
 
-  // initialize l2 locks
-  L2_flush_locks = new std::mutex[num_bufs[1]];
+  // initialize l3 flush locks
+  level3_flush_locks = new std::mutex[level3_bufs];
 
   // for debugging -- print out root to leaf paths for every id
-  //for (node_id_t i = 0; i < num_nodes; i++)
+  // std::cout << "level1 bits = " << level1_bits << ", pos = " << level1_pos << std::endl;
+  // std::cout << "level2 bits = " << level2_bits << ", pos = " << level2_pos << std::endl;
+  // std::cout << "level3 bits = " << level3_bits << ", pos = " << level3_pos << std::endl;
+
+  // for (node_id_t i = 0; i < num_nodes; i++)
   //  print_r_to_l(i);
-  print_fanouts();
 }
 
 CacheGuttering::~CacheGuttering() {
   delete[] leaf_gutters;
-  delete[] RAM1_gutters;
-  delete[] L2_flush_locks;
+  delete[] level4_gutters;
+  delete[] level3_flush_locks;
 }
 
 void CacheGuttering::InsertThread::insert(const update_t &upd) {
-  node_id_t l1_idx = extract_left_bits(upd.first, CGsystem.l1_pos);
-  auto &gutter = l1_gutters[l1_idx];
+  node_id_t l1_idx = extract_left_bits(upd.first, CGsystem.level1_pos);
+  auto &gutter = level1_gutters[l1_idx];
   gutter.data[gutter.num_elms++] = upd;
 
   // std::cout << "Handling update " << upd.first << ", " << upd.second << std::endl;
   // std::cout << "Placing in L1 buffer " << l1_idx << ", num_elms = " << gutter.num_elms << std::endl;
 
-  if (gutter.num_elms >= buf_elems[0]) {
+  if (gutter.num_elms >= level1_elms) {
     // std::cout << "Flushing L1 gutter" << std::endl;
     flush_buf_l1(l1_idx);
   }
 }
 
 void CacheGuttering::InsertThread::flush_buf_l1(const node_id_t idx) {
-  auto &l1_gutter = l1_gutters[idx];
+  auto &l1_gutter = level1_gutters[idx];
   for (size_t i = 0; i < l1_gutter.num_elms; i++) {
     update_t upd = l1_gutter.data[i];
-    node_id_t l2_idx = extract_left_bits(upd.first, CGsystem.l2_pos);
-    auto &l2_gutter = l2_gutters[l2_idx];
+    node_id_t l2_idx = extract_left_bits(upd.first, CGsystem.level2_pos);
+    auto &l2_gutter = level2_gutters[l2_idx];
     l2_gutter.data[l2_gutter.num_elms++] = upd;
-    if (l2_gutter.num_elms >= buf_elems[1])
+    if (l2_gutter.num_elms >= level2_elms)
       flush_buf_l2(l2_idx);
   }
   l1_gutter.num_elms = 0;
 }
 
 void CacheGuttering::InsertThread::flush_buf_l2(const node_id_t idx) {
-  // lock associated mutex for this l2 gutter
-  CGsystem.L2_flush_locks[idx].lock();
-
-  auto &l2_gutter = l2_gutters[idx];
+  auto &l2_gutter = level2_gutters[idx];
   for (size_t i = 0; i < l2_gutter.num_elms; i++) {
     update_t upd = l2_gutter.data[i];
-    node_id_t l3_idx = extract_left_bits(upd.first, CGsystem.l3_pos);
-    assert(l3_idx >> (CGsystem.l2_pos - CGsystem.l3_pos) == idx); 
-    //   std::cout << "l2pos=" << CGsystem.l2_pos << " l3pos=" << CGsystem.l3_pos << std::endl;
-    //   std::cout << ((l3_idx >> (CGsystem.l2_pos - CGsystem.l3_pos)) ^ idx) << std::endl;
+    node_id_t l3_idx = extract_left_bits(upd.first, CGsystem.level3_pos);
+    assert(l3_idx >> (CGsystem.level2_pos - CGsystem.level3_pos) == idx);
+    //   std::cout << "l2pos=" << CGsystem.level2_pos << " l3pos=" << CGsystem.level3_pos << std::endl;
+    //   std::cout << ((l3_idx >> (CGsystem.level2_pos - CGsystem.level3_pos)) ^ idx) << std::endl;
     //   std::cout << "idx=" << idx << " l3_idx=" << l3_idx << std::endl;
     //   exit(1);
     // }
-    auto &l3_gutter = CGsystem.l3_gutters[l3_idx];
+    auto &l3_gutter = level3_gutters[l3_idx];
     l3_gutter.data[l3_gutter.num_elms++] = upd;
-    if (l3_gutter.num_elms >= buf_elems[2])
-      CGsystem.flush_buf_l3(l3_idx);
+    if (l3_gutter.num_elms >= level3_elms)
+      flush_buf_l3(l3_idx);
   }
-
-  // unlock
-  CGsystem.L2_flush_locks[idx].unlock();
-
   l2_gutter.num_elms = 0;
 }
 
-void CacheGuttering::flush_buf_l3(const node_id_t idx) {
-  auto &l3_gutter = l3_gutters[idx];
-  if (RAM1_gutters == nullptr) {
+void CacheGuttering::InsertThread::flush_buf_l3(const node_id_t idx) {
+  // lock associated mutex for this level3 gutter
+  CGsystem.level3_flush_locks[idx].lock();
+
+  auto &l3_gutter = level3_gutters[idx];
+  if (CGsystem.level4_gutters == nullptr) {
     // flush directly to leaves
     for (size_t i = 0; i < l3_gutter.num_elms; i++) {
       update_t upd = l3_gutter.data[i];
-      Leaf_Gutter &leaf = leaf_gutters[upd.first];
+      Leaf_Gutter &leaf = CGsystem.leaf_gutters[upd.first];
       // std::cout << "L3 Handling update " << upd.first << ", " << upd.second << std::endl;
       leaf.push_back(upd.second);
-      if (leaf.size() >= leaf_gutter_size) {
-        assert(leaf.size() == leaf_gutter_size);
-        wq.push(upd.first, leaf);
+      if (leaf.size() >= CGsystem.leaf_gutter_size) {
+        assert(leaf.size() == CGsystem.leaf_gutter_size);
+        CGsystem.wq.push(upd.first, leaf);
         leaf.clear();
       }
     }
@@ -159,20 +137,22 @@ void CacheGuttering::flush_buf_l3(const node_id_t idx) {
     // flush to RAM1 gutters
     for (size_t i = 0; i < l3_gutter.num_elms; i++) {
       update_t upd = l3_gutter.data[i];
-      node_id_t RAM1_idx = extract_left_bits(upd.first, RAM1_pos);
-      RAM_Gutter &gutter = RAM1_gutters[RAM1_idx];
+      node_id_t l4_idx = extract_left_bits(upd.first, CGsystem.level4_pos);
+      RAM_Gutter &gutter = CGsystem.level4_gutters[l4_idx];
       gutter.push_back(upd);
-      if (gutter.size() >= RAM1_buf_elms) {
-        assert(gutter.size() == RAM1_buf_elms);
-        flush_RAM_l1(RAM1_idx);
+      if (gutter.size() >= CGsystem.level4_buf_elms) {
+        assert(gutter.size() == CGsystem.level4_buf_elms);
+        CGsystem.flush_buf_l4(l4_idx);
       }
     }
   }
   l3_gutter.num_elms = 0;
+  // unlock
+  CGsystem.level3_flush_locks[idx].unlock();
 }
 
-void CacheGuttering::flush_RAM_l1(const node_id_t idx) {
-  RAM_Gutter &gutter = RAM1_gutters[idx];
+void CacheGuttering::flush_buf_l4(const node_id_t idx) {
+  RAM_Gutter &gutter = level4_gutters[idx];
   for (update_t upd : gutter) {
     Leaf_Gutter &leaf = leaf_gutters[upd.first];
     leaf.push_back(upd.second);
@@ -187,18 +167,17 @@ void CacheGuttering::flush_RAM_l1(const node_id_t idx) {
 
 void CacheGuttering::force_flush() {
   for (auto &thr : insert_threads) {
-    for (size_t i = 0; i < num_bufs[0]; i++)
+    for (size_t i = 0; i < level1_bufs; i++)
       thr.flush_buf_l1(i);
-    for (size_t i = 0; i < num_bufs[1]; i++)
+    for (size_t i = 0; i < level2_bufs; i++)
       thr.flush_buf_l2(i);
+    for (size_t i = 0; i < level3_bufs; i++)
+      thr.flush_buf_l3(i);
   }
 
-  for (size_t i = 0; i < num_bufs[2]; i++)
-    flush_buf_l3(i);
-
-  if (RAM1_gutters != nullptr) {
-    for (size_t i = 0; i < max_RAM1_bufs; i++)
-      flush_RAM_l1(i);
+  if (level4_gutters != nullptr) {
+    for (size_t i = 0; i < max_level4_bufs; i++)
+      flush_buf_l4(i);
   }
 
   for (node_id_t i = 0; i < num_nodes; i++) {
