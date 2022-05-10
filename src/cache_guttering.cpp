@@ -1,6 +1,7 @@
 #include "cache_guttering.h"
 
 #include <iostream>
+#include <thread>
 
 inline static node_id_t extract_left_bits(node_id_t number, int pos) {
   number >>= pos;
@@ -37,9 +38,9 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
 
     level4_elms_per_buf = level4_fanout * block_size / sizeof(update_t);
 
-    std::cout << "Using RAM1 buffer" << std::endl;
-    std::cout << "RAM1 fanout   = " << level4_fanout << std::endl;
-    std::cout << "RAM1 elements = " << level4_elms_per_buf << std::endl;
+    std::cout << "Using level 4 buffer" << std::endl;
+    std::cout << "level 4 fanout    = " << level4_fanout << std::endl;
+    std::cout << "level 4 elems/buf = " << level4_elms_per_buf << std::endl;
 
     level4_gutters = new RAM_Gutter[max_level4_bufs];
     for (node_id_t i = 0; i < max_level4_bufs; ++i)
@@ -53,6 +54,10 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
 
   // initialize l3 flush locks
   level3_flush_locks = new std::mutex[level3_bufs];
+  
+  std::cout << "level 1 bytes = " << inserters * sizeof(insert_threads[0].level1_gutters) << std::endl;
+  std::cout << "level 2 bytes = " << inserters * sizeof(insert_threads[1].level2_gutters) << std::endl;
+  std::cout << "level 3 bytes = " << inserters * sizeof(insert_threads[2].level3_gutters) << std::endl;
 
   // for debugging -- print out root to leaf paths for every id
   // std::cout << "level1 bits = " << level1_bits << ", pos = " << level1_pos << std::endl;
@@ -77,7 +82,7 @@ void CacheGuttering::InsertThread::insert(const update_t &upd) {
   // std::cout << "Handling update " << upd.first << ", " << upd.second << std::endl;
   // std::cout << "Placing in L1 buffer " << l1_idx << ", num_elms = " << gutter.num_elms << std::endl;
 
-  if (gutter.num_elms >= level1_elms_per_buf) {
+  if (gutter.num_elms >= gutter.max_elms) {
     // std::cout << "Flushing L1 gutter" << std::endl;
     flush_buf_l1(l1_idx);
   }
@@ -90,10 +95,11 @@ void CacheGuttering::InsertThread::flush_buf_l1(const node_id_t idx) {
     node_id_t l2_idx = extract_left_bits(upd.first, CGsystem.level2_pos);
     auto &l2_gutter = level2_gutters[l2_idx];
     l2_gutter.data[l2_gutter.num_elms++] = upd;
-    if (l2_gutter.num_elms >= level2_elms_per_buf)
+    if (l2_gutter.num_elms >= l2_gutter.max_elms)
       flush_buf_l2(l2_idx);
   }
   l1_gutter.num_elms = 0;
+  l1_gutter.max_elms = level1_elms_per_buf;
 }
 
 void CacheGuttering::InsertThread::flush_buf_l2(const node_id_t idx) {
@@ -109,10 +115,11 @@ void CacheGuttering::InsertThread::flush_buf_l2(const node_id_t idx) {
     // }
     auto &l3_gutter = level3_gutters[l3_idx];
     l3_gutter.data[l3_gutter.num_elms++] = upd;
-    if (l3_gutter.num_elms >= level3_elms_per_buf)
+    if (l3_gutter.num_elms >= l3_gutter.max_elms)
       flush_buf_l3(l3_idx);
   }
   l2_gutter.num_elms = 0;
+  l2_gutter.max_elms = level2_elms_per_buf;
 }
 
 void CacheGuttering::InsertThread::flush_buf_l3(const node_id_t idx) {
@@ -147,6 +154,7 @@ void CacheGuttering::InsertThread::flush_buf_l3(const node_id_t idx) {
     }
   }
   l3_gutter.num_elms = 0;
+  l3_gutter.max_elms = level3_elms_per_buf;
   // unlock
   CGsystem.level3_flush_locks[idx].unlock();
 }
@@ -166,15 +174,27 @@ void CacheGuttering::flush_buf_l4(const node_id_t idx) {
 }
 
 void CacheGuttering::force_flush() {
-  for (auto &thr : insert_threads) {
+  // task for flushing thread local buffers
+  auto flush_task = [&](const size_t idx) {
+    auto &thr = insert_threads[idx];
     for (size_t i = 0; i < level1_bufs; i++)
       thr.flush_buf_l1(i);
     for (size_t i = 0; i < level2_bufs; i++)
       thr.flush_buf_l2(i);
     for (size_t i = 0; i < level3_bufs; i++)
       thr.flush_buf_l3(i);
-  }
-
+	};
+  
+	// flush thread local buffers in parallel
+  std::vector<std::thread> threads;
+  threads.reserve(inserters);
+	for (int i = 0; i < inserters; i++)
+		threads.emplace_back(flush_task, i);
+  
+  for (int i = 0; i < inserters; i++)
+    threads[i].join();
+  
+  // flush level4 gutters if necessary
   if (level4_gutters != nullptr) {
     for (size_t i = 0; i < max_level4_bufs; i++)
       flush_buf_l4(i);

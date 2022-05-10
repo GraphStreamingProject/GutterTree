@@ -20,18 +20,18 @@ private:
   // currently these are the values for bigboi
   static constexpr size_t l2_cache_size  = 1048576;  // l2 cache bytes per cpu
   static constexpr size_t cache_line     = 64; // number of bytes in a cache_line
-  static constexpr size_t block_size     = 16 * cache_line;
-  static constexpr double buffer_growth_factor = 1.5;
+  static constexpr size_t block_size     = 8 * cache_line;
+  static constexpr double buffer_growth_factor = 2;
 
   // basic 'tree' params
-  static constexpr size_t l1_fanout           = 32;
-  static constexpr size_t level1_bufs         = 16; // number of root buffers. Must be power of 2
-  static constexpr size_t level1_elms_per_buf = l2_cache_size / 64 / sizeof(update_t);
-  static constexpr size_t level2_bufs         = level1_bufs * l1_fanout;
-  static constexpr size_t level2_elms_per_buf = l2_cache_size / 64 * buffer_growth_factor / sizeof(update_t);
-  static constexpr size_t level3_bufs         = level2_bufs * l1_fanout;
-  static constexpr size_t level3_elms_per_buf = l2_cache_size / 64 * buffer_growth_factor * buffer_growth_factor / sizeof(update_t);
-  static constexpr size_t max_level4_bufs     = level3_bufs * l1_fanout;
+  static constexpr size_t level1_fanout       = 16;
+  static constexpr size_t level1_bufs         = 8; // number of root buffers. Must be power of 2
+  static constexpr size_t level1_elms_per_buf = level1_fanout * block_size / sizeof(update_t);
+  static constexpr size_t level2_bufs         = level1_bufs * level1_fanout;
+  static constexpr size_t level2_elms_per_buf = level1_elms_per_buf * buffer_growth_factor;
+  static constexpr size_t level3_bufs         = level2_bufs * level1_fanout * buffer_growth_factor;
+  static constexpr size_t level3_elms_per_buf = level2_elms_per_buf * buffer_growth_factor * buffer_growth_factor;
+  static constexpr size_t max_level4_bufs     = level3_bufs * level1_fanout * buffer_growth_factor * buffer_growth_factor;
 
   // bit length variables
   static constexpr int level1_bits = log2_constexpr(level1_bufs);
@@ -55,10 +55,11 @@ private:
   struct Cache_Gutter {
     std::array<update_t, num_slots> data;
     size_t num_elms = 0;
+    size_t max_elms = 3*num_slots / 4 + rand() % (num_slots/4);
   };
 
   class InsertThread {
-  private:
+	  public:
     CacheGuttering &CGsystem; // reference to associated CacheGuttering system
 
     // thread local gutters
