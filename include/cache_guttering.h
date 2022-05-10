@@ -11,6 +11,14 @@ constexpr int log2_constexpr(size_t num) {
   return power;
 }
 
+// so this is a sqrt function that is constexpr (bad performance, only use at compile time)
+// Input 'num' should be a perfect square-- this rounds down to the nearest perfect square.
+constexpr int sqrt_ce(size_t num) {
+  int factor = 2;
+  while (factor * factor <= num) { factor++; }
+  return factor-1;
+}
+
 class CacheGuttering : public GutteringSystem {
 private:
   size_t inserters;
@@ -21,13 +29,23 @@ private:
   static constexpr size_t l1_cache_size   = 32768;    // l1 cache bytes per cpu
   static constexpr size_t l2_cache_size   = 1048576;  // l2 cache bytes per cpu
   static constexpr size_t l3_cache_size   =  33554432; // l3 cache bytes in total
+  static constexpr size_t RAM_cache_size   =  4096 * l3_cache_size; // l3 cache bytes in total
 
-  static constexpr size_t cache_sizes[3] = {l1_cache_size, l2_cache_size, l3_cache_size};
-  static constexpr size_t cache_line      = 64; // number of bytes in a cache_line
-  static constexpr size_t mult         = 1;		// Over or undersubscribe the cache
-  
+
+  static constexpr size_t cache_sizes[4] = {l1_cache_size, l2_cache_size, l3_cache_size, RAM_cache_size};
+  static constexpr size_t cache_ratios[4] = {cache_sizes[1] / cache_sizes[0], cache_sizes[2] / cache_sizes[1], cache_sizes[3] / cache_sizes[2]};
+	
+  static constexpr size_t cache_line		= 2048; // number of bytes in a cache_line
+	// B in M/B
+  static constexpr size_t block_sizes[4] = {cache_line, 
+block_sizes[0] * sqrt_ce(cache_ratios[0]),
+block_sizes[1] * sqrt_ce(cache_ratios[1]),
+block_sizes[2] * sqrt_ce(cache_ratios[2])};
+
+
+
 	// The size of a buffer in bytes.
-  static constexpr size_t buf_bytes[4] = {32*cache_line, 64*cache_line, 128*cache_line, 256*cache_line};
+  static constexpr size_t buf_bytes[4] = {1*cache_line, 2*cache_line, *cache_line, 512*cache_line};
 	// The number of buffer elements per buffer
   static constexpr size_t buf_elems[4] = {buf_bytes[0] / sizeof(update_t), buf_bytes[1] / sizeof(update_t),
     buf_bytes[2] / sizeof(update_t), buf_bytes[3] / sizeof(update_t)};
