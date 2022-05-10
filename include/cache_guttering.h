@@ -57,6 +57,7 @@ private:
   struct Cache_Gutter {
     std::array<update_t, num_slots> data;
     size_t num_elms = 0;
+		size_t max_elms = rand() % num_slots;
   };
 
   class InsertThread {
