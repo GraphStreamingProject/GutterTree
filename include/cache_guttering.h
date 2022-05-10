@@ -21,17 +21,17 @@ private:
   static constexpr size_t l2_cache_size  = 1048576;  // l2 cache bytes per cpu
   static constexpr size_t cache_line     = 64; // number of bytes in a cache_line
   static constexpr size_t block_size     = 16 * cache_line;
-  static constexpr double buffer_growth_factor = 2;
+  static constexpr double buffer_growth_factor = 1.5;
 
   // basic 'tree' params
-  static constexpr size_t l1_fanout       = 16;
-  static constexpr size_t level1_bufs     = 16; // number of root buffers. Must be power of 2
-  static constexpr size_t level1_elms     = l2_cache_size / 64 / sizeof(update_t);
-  static constexpr size_t level2_bufs     = level1_bufs * l1_fanout;
-  static constexpr size_t level2_elms     = l2_cache_size / 64 * buffer_growth_factor / sizeof(update_t);
-  static constexpr size_t level3_bufs     = level2_bufs * l1_fanout * buffer_growth_factor;
-  static constexpr size_t level3_elms     = l2_cache_size / 64 * 2 * buffer_growth_factor / sizeof(update_t);
-  static constexpr size_t max_level4_bufs = level3_bufs * l1_fanout * 2 * buffer_growth_factor;
+  static constexpr size_t l1_fanout           = 32;
+  static constexpr size_t level1_bufs         = 16; // number of root buffers. Must be power of 2
+  static constexpr size_t level1_elms_per_buf = l2_cache_size / 64 / sizeof(update_t);
+  static constexpr size_t level2_bufs         = level1_bufs * l1_fanout;
+  static constexpr size_t level2_elms_per_buf = l2_cache_size / 64 * buffer_growth_factor / sizeof(update_t);
+  static constexpr size_t level3_bufs         = level2_bufs * l1_fanout;
+  static constexpr size_t level3_elms_per_buf = l2_cache_size / 64 * buffer_growth_factor * buffer_growth_factor / sizeof(update_t);
+  static constexpr size_t max_level4_bufs     = level3_bufs * l1_fanout;
 
   // bit length variables
   static constexpr int level1_bits = log2_constexpr(level1_bufs);
@@ -47,7 +47,7 @@ private:
 
   // variables for controlling the fanout and size of optional 4th level
   size_t level4_fanout   = 0;
-  size_t level4_buf_elms = 0;
+  size_t level4_elms_per_buf = 0;
 
   using RAM_Gutter  = std::vector<update_t>;
   using Leaf_Gutter = std::vector<node_id_t>;
@@ -62,9 +62,9 @@ private:
     CacheGuttering &CGsystem; // reference to associated CacheGuttering system
 
     // thread local gutters
-    std::array<Cache_Gutter<level1_elms>, level1_bufs> level1_gutters;
-    std::array<Cache_Gutter<level2_elms>, level2_bufs> level2_gutters;
-    std::array<Cache_Gutter<level3_elms>, level3_bufs> level3_gutters;
+    std::array<Cache_Gutter<level1_elms_per_buf>, level1_bufs> level1_gutters;
+    std::array<Cache_Gutter<level2_elms_per_buf>, level2_bufs> level2_gutters;
+    std::array<Cache_Gutter<level3_elms_per_buf>, level3_bufs> level3_gutters;
   public:
     InsertThread(CacheGuttering &CGsystem) : CGsystem(CGsystem) {};
 
