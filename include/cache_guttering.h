@@ -30,7 +30,7 @@ private:
   static constexpr size_t level2_bufs         = level1_bufs * level1_fanout;
   static constexpr size_t level2_elms_per_buf = level1_elms_per_buf * buffer_growth_factor;
   static constexpr size_t level3_bufs         = level2_bufs * level1_fanout * buffer_growth_factor;
-  static constexpr size_t level3_elms_per_buf = level2_elms_per_buf * buffer_growth_factor * buffer_growth_factor;
+  static constexpr size_t level3_elms_per_buf = level2_elms_per_buf * buffer_growth_factor;
   static constexpr size_t max_level4_bufs     = level3_bufs * level1_fanout * buffer_growth_factor * buffer_growth_factor;
 
   // bit length variables
@@ -59,7 +59,7 @@ private:
   };
 
   class InsertThread {
-    public:
+    private:
     CacheGuttering &CGsystem; // reference to associated CacheGuttering system
 
     // thread local gutters

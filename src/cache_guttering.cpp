@@ -55,10 +55,7 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
   // initialize l3 flush locks
   level3_flush_locks = new std::mutex[level3_bufs];
   
-  std::cout << "level 1 bytes = " << inserters * sizeof(insert_threads[0].level1_gutters) << std::endl;
-  std::cout << "level 2 bytes = " << inserters * sizeof(insert_threads[1].level2_gutters) << std::endl;
-  std::cout << "level 3 bytes = " << inserters * sizeof(insert_threads[2].level3_gutters) << std::endl;
-
+  std::cout << "Total InsertThreads bytes: " << sizeof(InsertThread) * inserters << std::endl;
   // for debugging -- print out root to leaf paths for every id
   // std::cout << "level1 bits = " << level1_bits << ", pos = " << level1_pos << std::endl;
   // std::cout << "level2 bits = " << level2_bits << ", pos = " << level2_pos << std::endl;
