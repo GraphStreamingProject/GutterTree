@@ -17,7 +17,7 @@ WorkQueue::WorkQueue(size_t total_batches, size_t batch_size, size_t bpe) :
     producer_list = node; // set head to new node
   }
 
-  printf("WQ: created work queue with %lu elements, each of %lu batch(es), containing %lu updates\n", len, max_batch_size, batch_per_elm);
+  printf("WQ: created work queue with %lu elements, each of %lu batch(es), containing %lu updates\n", len, batch_per_elm, max_batch_size);
 }
 
 WorkQueue::~WorkQueue() {
