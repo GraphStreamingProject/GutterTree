@@ -20,26 +20,6 @@ enum SystemEnum {
   CACHETREE
 };
 
-struct GutterConfig {
-  int buffer_exp = 20;
-  int branch = 64;
-  int queue_factor = 2;
-  int page_factor = 1;
-  int num_flushers = 1;
-  int gutter_factor = 1;
-
-  void write() {
-    std::ofstream conf("./buffering.conf");
-    conf << "# configuration created by unit test" << std::endl;
-    conf << "buffer_exp=" << buffer_exp << std::endl;
-    conf << "branch=" << branch << std::endl;
-    conf << "queue_factor=" << queue_factor << std::endl;
-    conf << "page_factor=" << page_factor << std::endl;
-    conf << "num_threads=" << num_flushers << std::endl;
-    conf << "gutter_factor=" << gutter_factor << std::endl;
-  }
-};
-
 // queries the buffer tree and verifies that the data
 // returned makes sense
 // Should be run in a seperate thread
@@ -48,38 +28,18 @@ static void querier(GutteringSystem *gts, int nodes) {
   while(true) {
     bool valid = gts->get_data(data);
     if (valid) {
-      node_id_t key = data->get_node_idx();
-      std::vector<node_id_t> updates = data->get_data_vec();
-      // verify that the updates are all between the correct nodes
-      for (auto upd : updates) {
-        // printf("edge from %u to %u\n", key, upd);
-        ASSERT_EQ(nodes - (key + 1), upd) << "key " << key;
-        upd_processed += 1;
-      }
-      gts->get_data_callback(data);
-    }
-    else if(shutdown)
-      return;
-  }
-}
-
-static void batch_querier(GutteringSystem *gts, int nodes, int batch_size) {
-  std::vector<WorkQueue::DataNode *> data_vec;
-  while(true) {
-    bool valid = gts->get_data_batched(data_vec, batch_size);
-    if (valid) {
-      // printf("Got batched data vector of size %lu\n", data_vec.size());
-      for (auto data : data_vec) {
-        node_id_t key = data->get_node_idx();
-        std::vector<node_id_t> updates = data->get_data_vec();
+      std::vector<update_batch> batches = data->get_batches();
+      for (auto batch : batches) {
+        node_id_t key = batch.node_idx;
+        std::vector<node_id_t> upd_vec = batch.upd_vec;
         // verify that the updates are all between the correct nodes
-        for (auto upd : updates) {
-          // printf("edge to %d\n", upd.first);
+        for (auto upd : upd_vec) {
+          // printf("edge from %u to %u\n", key, upd);
           ASSERT_EQ(nodes - (key + 1), upd) << "key " << key;
           upd_processed += 1;
         }
       }
-      gts->get_data_batched_callback(data_vec);
+      gts->get_data_callback(data);
     }
     else if(shutdown)
       return;
@@ -95,20 +55,20 @@ INSTANTIATE_TEST_SUITE_P(GutteringTestSuite, GuttersTest, testing::Values(GUTTRE
 // and no work is claimed off of the work queue
 // to work correctly num_updates must be a multiple of nodes
 static void run_test(const int nodes, const int num_updates, const int data_workers,
- const SystemEnum gts_enum, const int nthreads=1) {
+ const SystemEnum gts_enum, GutteringConfiguration conf, const int nthreads=1) {
   GutteringSystem *gts;
   std::string system_str;
   if (gts_enum == GUTTREE) {
     system_str = "GutterTree";
-    gts = new GutterTree("./test_", nodes, data_workers, true);
+    gts = new GutterTree("./test_", nodes, data_workers, conf, true);
   }
   else if (gts_enum == STANDALONE) {
     system_str = "StandAloneGutters";
-    gts = new StandAloneGutters(nodes, data_workers, nthreads);
+    gts = new StandAloneGutters(nodes, data_workers, nthreads, conf);
   }
   else if (gts_enum == CACHETREE) {
     system_str = "CacheGuttering";
-    gts = new CacheGuttering(nodes, data_workers, nthreads);
+    gts = new CacheGuttering(nodes, data_workers, nthreads, conf);
   }
   else {
     printf("Did not recognize gts_enum!\n");
@@ -165,12 +125,11 @@ TEST_P(GuttersTest, Small) {
   const int data_workers = 1;
   
   // Guttering System configuration
-  GutterConfig conf;
-  conf.buffer_exp = 12;
-  conf.branch = 2;
-  conf.write();
+  GutteringConfiguration conf;
+  conf.buffer_size = 1 << 12;
+  conf.fanout = 2;
 
-  run_test(nodes, num_updates, data_workers, GetParam());
+  run_test(nodes, num_updates, data_workers, GetParam(), conf);
 }
 
 TEST_P(GuttersTest, Medium) {
@@ -179,12 +138,11 @@ TEST_P(GuttersTest, Medium) {
   const int data_workers = 1;
 
   // Guttering System configuration
-  GutterConfig conf;
-  conf.buffer_exp = 20;
-  conf.branch = 8;
-  conf.write();
+  GutteringConfiguration conf;
+  conf.buffer_size = 1 << 20;
+  conf.fanout = 8;
 
-  run_test(nodes, num_updates, data_workers, GetParam());
+  run_test(nodes, num_updates, data_workers, GetParam(), conf);
 }
 
 TEST_P(GuttersTest, ManyInserts) {
@@ -193,12 +151,11 @@ TEST_P(GuttersTest, ManyInserts) {
   const int data_workers = 4;
 
   // Guttering System configuration
-  GutterConfig conf;
-  conf.buffer_exp = 20;
-  conf.branch = 2;
-  conf.write();
+  GutteringConfiguration conf;
+  conf.buffer_size = 1 << 20;
+  conf.fanout = 2;
 
-  run_test(nodes, num_updates, data_workers, GetParam());
+  run_test(nodes, num_updates, data_workers, GetParam(), conf);
 }
 
 TEST(GuttersTest, ManyInsertsParallel) {
@@ -207,12 +164,11 @@ TEST(GuttersTest, ManyInsertsParallel) {
   const int data_workers = 4;
 
   // Guttering System configuration
-  GutterConfig conf;
-  conf.buffer_exp = 20;
-  conf.branch = 2;
-  conf.write();
+  GutteringConfiguration conf;
+  conf.buffer_size = 1 << 20;
+  conf.fanout = 2;
 
-  run_test(nodes, num_updates, data_workers, STANDALONE, 10);
+  run_test(nodes, num_updates, data_workers, STANDALONE, conf, 10);
 }
 
 TEST_P(GuttersTest, TinyGutters) {
@@ -221,14 +177,13 @@ TEST_P(GuttersTest, TinyGutters) {
   const int data_workers = 4;
 
   // gutter factor to make buffers size 1
-  GutterConfig conf;
-  conf.buffer_exp = 16;
-  conf.branch = 16;
+  GutteringConfiguration conf;
+  conf.buffer_size = 1 << 16;
+  conf.fanout = 16;
   conf.gutter_factor = -1 * GutteringSystem::upds_per_sketch(nodes);
   conf.queue_factor = 1;
-  conf.write();
 
-  run_test(nodes, num_updates, data_workers, GetParam());
+  run_test(nodes, num_updates, data_workers, GetParam(), conf);
 }
 
 TEST_P(GuttersTest, FlushAndInsertAgain) {
@@ -238,24 +193,23 @@ TEST_P(GuttersTest, FlushAndInsertAgain) {
   const int data_workers = 20;
 
   // gutter factor to make buffers size 1
-  GutterConfig conf;
+  GutteringConfiguration conf;
   conf.gutter_factor = 2;
-  conf.write();
 
   SystemEnum gts_enum = GetParam();
   GutteringSystem *gts;
   std::string system_str;
   if (gts_enum == GUTTREE) {
     system_str = "GutterTree";
-    gts = new GutterTree("./test_", nodes, data_workers, true);
+    gts = new GutterTree("./test_", nodes, data_workers, conf, true);
   }
   else if (gts_enum == STANDALONE) {
     system_str = "StandAloneGutters";
-    gts = new StandAloneGutters(nodes, data_workers, 1);
+    gts = new StandAloneGutters(nodes, data_workers, 1, conf);
   }
   else if (gts_enum == CACHETREE) {
     system_str = "CacheGuttering";
-    gts = new CacheGuttering(nodes, data_workers, 1);
+    gts = new CacheGuttering(nodes, data_workers, 1, conf);
   }
   else {
     printf("Did not recognize gts_enum!\n");
@@ -301,24 +255,24 @@ TEST_P(GuttersTest, GetDataBatched) {
   const int data_workers = 10;
 
   // gutter factor to make buffers size 1
-  GutterConfig conf;
+  GutteringConfiguration conf;
   conf.queue_factor = 20;
-  conf.write();
+  conf.wq_batch_per_elm = data_batch_size;
 
   SystemEnum gts_enum = GetParam();
   GutteringSystem *gts;
   std::string system_str;
   if (gts_enum == GUTTREE) {
     system_str = "GutterTree";
-    gts = new GutterTree("./test_", nodes, data_workers, true);
+    gts = new GutterTree("./test_", nodes, data_workers, conf, true);
   }
   else if (gts_enum == STANDALONE) {
     system_str = "StandAloneGutters";
-    gts = new StandAloneGutters(nodes, data_workers, 1);
+    gts = new StandAloneGutters(nodes, data_workers, 1, conf);
   }
   else if (gts_enum == CACHETREE) {
     system_str = "CacheGuttering";
-    gts = new CacheGuttering(nodes, data_workers, 1);
+    gts = new CacheGuttering(nodes, data_workers, 1, conf);
   }
   else {
     printf("Did not recognize gts_enum!\n");
@@ -333,7 +287,7 @@ TEST_P(GuttersTest, GetDataBatched) {
 
   std::thread query_threads[data_workers];
   for (int t = 0; t < data_workers; t++)
-    query_threads[t] = std::thread(batch_querier, gts, nodes, data_batch_size);
+    query_threads[t] = std::thread(querier, gts, nodes);
 
   for (int i = 0; i < num_updates; i++) {
     update_t upd;
@@ -365,12 +319,11 @@ TEST(GutterTreeTests, EvilInsertions) {
   const int nodes       = 32;
   const int num_updates = 4 * full_root;
 
-  GutterConfig conf;
-  conf.buffer_exp = 20;
-  conf.branch = 2;
-  conf.write();
+  GutteringConfiguration conf;
+  conf.buffer_size = 1 << 20;
+  conf.fanout = 2;
 
-  GutterTree *gt = new GutterTree("./test_", nodes, 1, true); //1=num_workers
+  GutterTree *gt = new GutterTree("./test_", nodes, 1, conf, true); //1=num_workers
   shutdown = false;
   upd_processed = 0;
   std::thread qworker(querier, gt, nodes);
@@ -410,14 +363,13 @@ TEST(GutterTreeTests, ParallelInsert) {
   const int nodes       = 1024;
   const int num_updates = 400000;
 
-  GutterConfig conf;
-  conf.buffer_exp = 17;
-  conf.branch = 8;
+  GutteringConfiguration conf;
+  conf.buffer_size = 1 << 17;
+  conf.fanout = 8;
   conf.num_flushers = 8;
   conf.queue_factor = 1;
-  conf.write();
 
-  GutterTree *gt = new GutterTree("./test_", nodes, 5, true);
+  GutterTree *gt = new GutterTree("./test_", nodes, 5, conf, true);
   shutdown = false;
   upd_processed = 0;
   std::thread query_threads[20];
@@ -450,7 +402,9 @@ TEST(StandaloneTest, ParallelInserts) {
   const int data_workers = 4;
   const int nthreads = 10;
 
-  run_test(nodes, num_updates, data_workers, STANDALONE, nthreads);
+  GutteringConfiguration conf;
+
+  run_test(nodes, num_updates, data_workers, STANDALONE, conf, nthreads);
 }
 
 TEST(CacheGutteringTest, ParallelInserts) {
@@ -459,5 +413,7 @@ TEST(CacheGutteringTest, ParallelInserts) {
   const int data_workers = 4;
   const int nthreads = 10;
 
-  run_test(nodes, num_updates, data_workers, CACHETREE, nthreads);
+  GutteringConfiguration conf;
+
+  run_test(nodes, num_updates, data_workers, CACHETREE, conf, nthreads);
 }

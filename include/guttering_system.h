@@ -1,15 +1,20 @@
 #pragma once
 #include "types.h"
 #include "work_queue.h"
+#include "guttering_configuration.h"
 #include <math.h>
 
 class GutteringSystem {
 public:
-  GutteringSystem(node_id_t num_nodes, int workers, bool page_slots=false) : 
-   leaf_gutter_size((configure_system(), 
-      std::max((node_id_t) (gutter_factor * upds_per_sketch(num_nodes)), (node_id_t)1))),
+  // Constructor for programmatic configuration
+  GutteringSystem(node_id_t num_nodes, int workers, GutteringConfiguration conf, bool page_slots=false) : 
+   page_size(conf.page_size), buffer_size(conf.buffer_size), 
+   fanout(conf.fanout), num_flushers(conf.num_flushers), gutter_factor(conf.gutter_factor),
+   queue_factor(conf.queue_factor), wq_batch_per_elm(conf.wq_batch_per_elm),
+   leaf_gutter_size(std::max((int)(conf.gutter_factor * upds_per_sketch(num_nodes)), 1)),
    wq(workers * queue_factor,
-      page_slots ? leaf_gutter_size + page_size / sizeof(node_id_t) : leaf_gutter_size) {}
+    page_slots ? leaf_gutter_size + page_size / sizeof(node_id_t) : leaf_gutter_size, 
+    wq_batch_per_elm) {conf.print();}
   
   virtual ~GutteringSystem() {};
   virtual insert_ret_t insert(const update_t &upd) = 0; //insert an element to the guttering system
@@ -29,25 +34,17 @@ public:
   // get data out of the guttering system either one gutter at a time or in a batched fashion
   bool get_data(WorkQueue::DataNode *&data) { return wq.peek(data); }
   void get_data_callback(WorkQueue::DataNode *data) { wq.peek_callback(data); }
-  bool get_data_batched(std::vector<WorkQueue::DataNode *> &batched_data, int batch_size) 
-    { return wq.peek_batch(batched_data, batch_size); }
-  void get_data_batched_callback(const std::vector<WorkQueue::DataNode *> &batched_data)
-    { wq.peek_batch_callback(batched_data); }
   void set_non_block(bool block) { wq.set_non_block(block);} //set non-blocking calls in wq
 protected:
-  /*
-   * Use buffering.conf configuration file to determine parameters of the guttering system
-   * Sets the parameters listed below
-   */
-  static void configure_system();
-
-  // various parameters utilized by the guttering systems
-  static uint32_t page_size;    // write granularity
-  static uint32_t buffer_size;  // size of an internal node buffer
-  static uint32_t fanout;       // maximum number of children per node
-  static uint32_t queue_factor; // number of elements in queue is this factor * num_workers
-  static uint32_t num_flushers; // the number of flush threads
-  static float gutter_factor;   // factor which increases/decreases the leaf gutter size
+  // parameters of the GutteringSystem, defined by the GutteringConfiguration param or config file
+  GutteringConfiguration conf;
+  const uint32_t page_size;      // guttertree -- write granularity
+  const uint32_t buffer_size;    // guttertree -- internal node buffer size
+  const uint32_t fanout;         // guttertree -- max children per node
+  const uint32_t num_flushers;   // guttertree -- the number of flush threads
+  const float gutter_factor;     // factor which increases/decreases the leaf gutter size
+  const uint32_t queue_factor;   // total number of batches in queue is this factor * num_workers
+  const size_t wq_batch_per_elm; // number of batches each queue element holds
 
   node_id_t leaf_gutter_size;
   WorkQueue wq;

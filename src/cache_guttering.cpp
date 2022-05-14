@@ -18,12 +18,12 @@ void CacheGuttering::print_r_to_l(node_id_t src) {
   std::cout << std::endl;
 }
 
-CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t inserters)
- : GutteringSystem(num_nodes, workers), inserters(inserters), num_nodes(num_nodes), 
-   level1_pos(ceil(log2(num_nodes)) - level1_bits),
-   level2_pos(std::max((int)ceil(log2(num_nodes)) - level2_bits, 0)), 
-   level3_pos(std::max((int)ceil(log2(num_nodes)) - level3_bits, 0)),
-   level4_pos(std::max((int)ceil(log2(num_nodes)) - level4_bits, 0)) {
+CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t inserters, 
+ GutteringConfiguration conf) : GutteringSystem(num_nodes, workers, conf), inserters(inserters), 
+ num_nodes(num_nodes), level1_pos(ceil(log2(num_nodes)) - level1_bits),
+ level2_pos(std::max((int)ceil(log2(num_nodes)) - level2_bits, 0)), 
+ level3_pos(std::max((int)ceil(log2(num_nodes)) - level3_bits, 0)),
+ level4_pos(std::max((int)ceil(log2(num_nodes)) - level4_bits, 0)) {
   
   // initialize storage for inserter threads
   insert_threads.reserve(inserters);
@@ -133,7 +133,9 @@ void CacheGuttering::InsertThread::flush_buf_l3(const node_id_t idx) {
       leaf.push_back(upd.second);
       if (leaf.size() >= CGsystem.leaf_gutter_size) {
         assert(leaf.size() == CGsystem.leaf_gutter_size);
-        CGsystem.wq.push(upd.first, leaf);
+        std::vector<update_batch> batch_vec;
+        batch_vec.push_back({upd.first, leaf});
+        CGsystem.wq.push(batch_vec);
         leaf.clear();
       }
     }
@@ -163,7 +165,9 @@ void CacheGuttering::flush_buf_l4(const node_id_t idx) {
     leaf.push_back(upd.second);
     if (leaf.size() >= leaf_gutter_size) {
       assert(leaf.size() == leaf_gutter_size);
-      wq.push(upd.first, leaf);
+      std::vector<update_batch> batch_vec;
+      batch_vec.push_back({upd.first, leaf});
+      wq.push(batch_vec);
       leaf.clear();
     }
   }
@@ -185,10 +189,10 @@ void CacheGuttering::force_flush() {
   // flush thread local buffers in parallel
   std::vector<std::thread> threads;
   threads.reserve(inserters);
-  for (int i = 0; i < inserters; i++)
+  for (size_t i = 0; i < inserters; i++)
     threads.emplace_back(flush_task, i);
   
-  for (int i = 0; i < inserters; i++)
+  for (size_t i = 0; i < inserters; i++)
     threads[i].join();
   
   // flush level4 gutters if necessary
@@ -201,7 +205,9 @@ void CacheGuttering::force_flush() {
     if (leaf_gutters[i].size() > 0) {
       // std::cout << "flushing leaf gutter " << i << " with " << leaf_gutters[i].size() << " updates" << std::endl;
       assert(leaf_gutters[i].size() <= leaf_gutter_size);
-      wq.push(i, leaf_gutters[i]);
+      std::vector<update_batch> batch_vec;
+      batch_vec.push_back({i, leaf_gutters[i]});
+      wq.push(batch_vec);
       leaf_gutters[i].clear();
     }
   }
