@@ -2,7 +2,7 @@
 #include <fstream>
 #include <string>
 #include <unistd.h> //sysconf
-static constexpr char config_loc[] = "buffering.conf";
+static constexpr char gutter_config_loc[] = "buffering.conf";
 
 class GutteringConfiguration {
 public:
@@ -50,7 +50,7 @@ public:
   GutteringConfiguration() {
     // parse the configuration file
     std::string line;
-    std::ifstream conf(config_loc);
+    std::ifstream conf(gutter_config_loc);
     if (conf.is_open()) {
       while(getline(conf, line)) {
         if (line[0] == '#' || line[0] == '\n') continue;
