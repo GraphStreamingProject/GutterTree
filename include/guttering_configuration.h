@@ -109,10 +109,10 @@ public:
     }
   }
 
-  // no copying for you
-  GutteringConfiguration(const GutteringConfiguration &) = delete;
+  // no use of equal operator
   GutteringConfiguration &operator=(const GutteringConfiguration &) = delete;
 
-  // moving is allowed
+  // moving and copying allowed
+  GutteringConfiguration(const GutteringConfiguration &) = default;
   GutteringConfiguration (GutteringConfiguration &&) = default;
 };
