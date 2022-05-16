@@ -55,6 +55,7 @@ static void run_randomized(const int nodes, const unsigned long updates, const u
   //Spin up then join threads
   for (unsigned int j = 0; j < nthreads; j++) {
     threads.emplace_back(task, j);
+#ifdef LINUX_FALLOCATE
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(j, &cpuset);
@@ -62,6 +63,7 @@ static void run_randomized(const int nodes, const unsigned long updates, const u
     if (rc != 0) {
       std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
     }
+#endif
   }
   for (unsigned int j = 0; j < nthreads; j++)
     threads[j].join();
@@ -113,6 +115,7 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
   //Spin up then join threads
   for (unsigned int j = 0; j < nthreads; j++) {
     threads.emplace_back(task, j);
+#ifdef LINUX_FALLOCATE
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(j, &cpuset);
@@ -120,6 +123,7 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
     if (rc != 0) {
       std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
     }
+#endif
   }
   for (unsigned int j = 0; j < nthreads; j++)
     threads[j].join();
