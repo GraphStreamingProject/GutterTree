@@ -7,7 +7,7 @@
 class GutteringSystem {
 public:
   // Constructor for programmatic configuration
-  GutteringSystem(node_id_t num_nodes, int workers, GutteringConfiguration conf, bool page_slots=false) : 
+  GutteringSystem(node_id_t num_nodes, int workers, const GutteringConfiguration &conf, bool page_slots=false) : 
    page_size(conf.page_size), buffer_size(conf.buffer_size), 
    fanout(conf.fanout), num_flushers(conf.num_flushers), gutter_factor(conf.gutter_factor),
    queue_factor(conf.queue_factor), wq_batch_per_elm(conf.wq_batch_per_elm),
@@ -37,7 +37,6 @@ public:
   void set_non_block(bool block) { wq.set_non_block(block);} //set non-blocking calls in wq
 protected:
   // parameters of the GutteringSystem, defined by the GutteringConfiguration param or config file
-  GutteringConfiguration conf;
   const uint32_t page_size;      // guttertree -- write granularity
   const uint32_t buffer_size;    // guttertree -- internal node buffer size
   const uint32_t fanout;         // guttertree -- max children per node

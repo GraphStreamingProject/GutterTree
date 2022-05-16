@@ -117,7 +117,7 @@ public:
    * @param workers     the number of workers which will be removing batches
    * @param inserters   the number of inserter buffers
    */
-  CacheGuttering(node_id_t nodes, uint32_t workers, uint32_t inserters, GutteringConfiguration conf);
+  CacheGuttering(node_id_t nodes, uint32_t workers, uint32_t inserters, const GutteringConfiguration &conf);
   CacheGuttering(node_id_t nodes, uint32_t workers, uint32_t inserters) : 
     CacheGuttering(nodes, workers, inserters, GutteringConfiguration()) {};
 

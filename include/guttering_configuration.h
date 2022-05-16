@@ -27,7 +27,7 @@ public:
   // number of batches placed into or removed from the queue in one push or peek operation
   size_t wq_batch_per_elm = 1;
 
-  void print() {
+  void print() const {
     std::cout << "GutteringSystem Configuration:" << std::endl;
     std::cout << " Background threads = " << num_flushers << std::endl;
     std::cout << " Leaf gutter factor = " << gutter_factor << std::endl;
@@ -103,7 +103,14 @@ public:
         }
       }
     } else {
-      printf("WARNING: Could not open buffering configuration file! Using default setttings.\n");
+      printf("WARNING: Could not open buffering configuration file! Using default settings.\n");
     }
   }
+
+  // no copying for you
+  GutteringConfiguration(const GutteringConfiguration &) = delete;
+  GutteringConfiguration &operator=(const GutteringConfiguration &) = delete;
+
+  // moving is allowed
+  GutteringConfiguration (GutteringConfiguration &&) = default;
 };

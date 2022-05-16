@@ -55,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(GutteringTestSuite, GuttersTest, testing::Values(GUTTRE
 // and no work is claimed off of the work queue
 // to work correctly num_updates must be a multiple of nodes
 static void run_test(const int nodes, const int num_updates, const int data_workers,
- const SystemEnum gts_enum, GutteringConfiguration conf, const int nthreads=1) {
+ const SystemEnum gts_enum, const GutteringConfiguration &conf, const int nthreads=1) {
   GutteringSystem *gts;
   std::string system_str;
   if (gts_enum == GUTTREE) {
@@ -126,7 +126,7 @@ TEST_P(GuttersTest, Small) {
   
   // Guttering System configuration
   GutteringConfiguration conf;
-  conf.buffer_size = 1 << 12;
+  conf.buffer_size = 1 << 15;
   conf.fanout = 2;
 
   run_test(nodes, num_updates, data_workers, GetParam(), conf);

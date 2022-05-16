@@ -37,7 +37,7 @@ public:
    * @param inserters   the number of inserter buffers
    */
   StandAloneGutters(node_id_t nodes, uint32_t workers, uint32_t inserters, 
-    GutteringConfiguration conf);
+    const GutteringConfiguration &conf);
   StandAloneGutters(node_id_t nodes, uint32_t workers, uint32_t inserters) : 
     StandAloneGutters(nodes, workers, inserters, GutteringConfiguration()) {};
 

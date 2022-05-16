@@ -19,7 +19,7 @@ void CacheGuttering::print_r_to_l(node_id_t src) {
 }
 
 CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t inserters, 
- GutteringConfiguration conf) : GutteringSystem(num_nodes, workers, conf), inserters(inserters), 
+ const GutteringConfiguration &conf) : GutteringSystem(num_nodes, workers, conf), inserters(inserters), 
  num_nodes(num_nodes), level1_pos(ceil(log2(num_nodes)) - level1_bits),
  level2_pos(std::max((int)ceil(log2(num_nodes)) - level2_bits, 0)), 
  level3_pos(std::max((int)ceil(log2(num_nodes)) - level3_bits, 0)),

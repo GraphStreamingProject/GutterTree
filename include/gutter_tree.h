@@ -80,7 +80,7 @@ public:
    * 
    * @throw GTFileOpenError if the backing file cannot be opened.
    */
-  GutterTree(std::string dir, node_id_t nodes, int workers, GutteringConfiguration conf, 
+  GutterTree(std::string dir, node_id_t nodes, int workers, const GutteringConfiguration &conf, 
     bool reset=false);
   GutterTree(std::string dir, node_id_t nodes, int workers, bool reset=false) :
     GutterTree(dir, nodes, workers, GutteringConfiguration(), reset) {};
