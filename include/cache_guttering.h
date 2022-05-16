@@ -57,6 +57,10 @@ private:
     size_t num_elms = 0;
     size_t max_elms = 3*num_slots / 4 + rand() % (num_slots/4);
   };
+  struct WQ_Buffer {
+    std::vector<update_batch> batches;
+    size_t size = 0;
+  };
 
   class InsertThread {
     private:
@@ -66,8 +70,13 @@ private:
     std::array<Cache_Gutter<level1_elms_per_buf>, level1_bufs> level1_gutters;
     std::array<Cache_Gutter<level2_elms_per_buf>, level2_bufs> level2_gutters;
     std::array<Cache_Gutter<level3_elms_per_buf>, level3_bufs> level3_gutters;
+
   public:
-    InsertThread(CacheGuttering &CGsystem) : CGsystem(CGsystem) {};
+    InsertThread(CacheGuttering &CGsystem) : CGsystem(CGsystem) {
+      local_wq_buffer.batches.resize(CGsystem.wq_batch_per_elm);
+      for (auto &batch : local_wq_buffer.batches)
+        batch.upd_vec.reserve(CGsystem.leaf_gutter_size);
+    };
 
     // insert an update into the local buffers
     void insert(const update_t &upd);
@@ -76,6 +85,12 @@ private:
     void flush_buf_l1(const node_id_t idx);
     void flush_buf_l2(const node_id_t idx);
     void flush_buf_l3(const node_id_t idx);
+    void flush_buf_l4(const node_id_t idx);
+    void flush_all(); // flush entire structure
+    void wq_push_helper(node_id_t node_idx, Leaf_Gutter &leaf);
+
+    // Buffer for performing batch push to work queue
+    WQ_Buffer local_wq_buffer;
 
     // no copying for you
     InsertThread(const InsertThread &) = delete;
@@ -95,8 +110,6 @@ private:
   friend class InsertThread;
 
   std::vector<InsertThread> insert_threads; // vector of InsertThreads
-
-  void flush_buf_l4(const node_id_t idx);
 public:
   /**
    * Constructs a new guttering systems using a tree like structure for cache efficiency.
