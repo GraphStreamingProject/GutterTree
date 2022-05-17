@@ -76,10 +76,14 @@ public:
    * @param nodes   number of nodes in the graph.
    * @param workers the number of workers which will be using this buffer tree (defaults to 1).
    * @param reset   should truncate the file storage upon opening.
+   * @param conf    (optional) defines the configuration for the gutter tree to pull from
    * 
    * @throw GTFileOpenError if the backing file cannot be opened.
    */
-  GutterTree(std::string dir, node_id_t nodes, int workers, bool reset);
+  GutterTree(std::string dir, node_id_t nodes, int workers, const GutteringConfiguration &conf, 
+    bool reset=false);
+  GutterTree(std::string dir, node_id_t nodes, int workers, bool reset=false) :
+    GutterTree(dir, nodes, workers, GutteringConfiguration(), reset) {};
   ~GutterTree();
 
   /**

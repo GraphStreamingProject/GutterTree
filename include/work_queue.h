@@ -6,40 +6,46 @@
 #include <vector>
 #include "types.h"
 
+struct update_batch {
+  node_id_t node_idx;
+  std::vector<node_id_t> upd_vec;
+};
+
 class WorkQueue {
  public:
   class DataNode {
    private:
     // LL next pointer
     DataNode *next = nullptr;
-    node_id_t node_idx = 0;
-    std::vector<node_id_t> data_vec;
+    std::vector<update_batch> batches;
 
-    DataNode(const size_t vec_size) {
-      data_vec.reserve(vec_size);
+    DataNode(const size_t batch_per_elm, const size_t vec_size) {
+      batches.resize(batch_per_elm);
+      for (size_t i = 0; i < batch_per_elm; i++) {
+        batches[i].upd_vec.reserve(vec_size);
+      }
     }
-
     friend class WorkQueue;
    public:
-    node_id_t get_node_idx() { return node_idx; }
-    const std::vector<node_id_t>& get_data_vec() { return data_vec; }
+    const std::vector<update_batch>& get_batches() { return batches; }
   };
 
   /*
    * Construct a work queue
-   * @param num_elements  the number of queue slots
-   * @param max_elm_size  the maximum size of a data element
+   * The number of elements in the queue is num_batches / batch_per_elm
+   * As a consequence num_batches is rounded up to the nearest multiple of batch_per_elm
+   * @param num_batches     the rough number of batches to have in the queue
+   * @param max_batch_size  the maximum size of a batch
+   * @param batch_per_elm   number of batches per queue element.
    */
-  WorkQueue(size_t num_elements, size_t max_elm_size);
+  WorkQueue(size_t num_batches, size_t max_batch_size, size_t batch_per_elm);
   ~WorkQueue();
 
   /* 
    * Add a data element to the queue
-   * @param node_idx  the graph node id these updates are associated with
-   * @param data_vec  vector of updates
-   *
+   * @param upd_vec_batch  vector of graph node id the associated updates
    */
-  void push(node_id_t node_idx, std::vector<node_id_t> &upd_vec);
+  void push(std::vector<update_batch> &upd_vec_batch);
 
   /* 
    * Get data from the queue for processing
@@ -84,8 +90,9 @@ private:
   DataNode *producer_list = nullptr; // list of nodes ready to be written to
   DataNode *consumer_list = nullptr; // list of nodes with data for reading
 
-  const size_t len;
-  const size_t max_elm_size;
+  const size_t len;            // number of elments in queue
+  const size_t max_batch_size; // maximum batch size
+  const size_t batch_per_elm;  // number of batches per work queue element
 
   // locks and condition variables for producer list
   std::condition_variable producer_condition;
@@ -94,7 +101,6 @@ private:
   // locks and condition variables for consumer list
   std::condition_variable consumer_condition;
   std::mutex consumer_list_lock;
-  size_t consumer_list_size; // size of consumer list for peek_batch
 
   // should WorkQueue peeks wait until they can succeed(false)
   // or return false on failure (true)
@@ -106,9 +112,8 @@ private:
   const std::string message;
 
 public:
-  WriteTooBig(int elm_size, int max_size) : 
-    message("WQ: Write is too big " + std::to_string(elm_size) 
-             + " > " + std::to_string(max_size)) {}
+  WriteTooBig(std::string message) : 
+    message(message) {}
 
   virtual const char *what() const throw() {
     return message.c_str();

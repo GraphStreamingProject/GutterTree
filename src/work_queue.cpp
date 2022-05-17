@@ -5,19 +5,19 @@
 #include <chrono>
 #include <cassert>
 
-WorkQueue::WorkQueue(size_t q_len, size_t max_elm_size) : len(q_len), max_elm_size(max_elm_size) {
+WorkQueue::WorkQueue(size_t total_batches, size_t batch_size, size_t bpe) : 
+ len(total_batches / bpe + total_batches % bpe), max_batch_size(batch_size), batch_per_elm(bpe) {
   non_block = false;
 
   // place all nodes of linked list in the producer queue and reserve
   // memory for the vectors
   for (size_t i = 0; i < len; i++) {
-    DataNode *node = new DataNode(max_elm_size); // create and reserve space for updates
+    DataNode *node = new DataNode(batch_per_elm, max_batch_size); // create and reserve space for updates
     node->next = producer_list; // next of node is head
     producer_list = node; // set head to new node
   }
-  consumer_list_size = 0;
 
-  printf("WQ: created work queue with %lu elements each of size %lu\n", len, max_elm_size);
+  printf("WQ: created work queue with %lu elements, each of %lu batch(es), containing %lu updates\n", len, batch_per_elm, max_batch_size);
 }
 
 WorkQueue::~WorkQueue() {
@@ -39,11 +39,19 @@ WorkQueue::~WorkQueue() {
   consumer_list_lock.unlock();
 }
 
-void WorkQueue::push(node_id_t node_idx, std::vector<node_id_t> &upd_vec) {
-  if(upd_vec.size() > max_elm_size) {
-    throw WriteTooBig(upd_vec.size(), max_elm_size);
+void WorkQueue::push(std::vector<update_batch> &upd_vec_batch) {
+  if (upd_vec_batch.size() > batch_per_elm) {
+    throw WriteTooBig("WQ: Too many batches in call to push " + 
+      std::to_string(upd_vec_batch.size()) + " > " + std::to_string(batch_per_elm));
   }
-
+  for (auto &batch : upd_vec_batch) {
+    // ensure the write size is valid
+    std::vector<node_id_t> &upd_vec = batch.upd_vec;
+    if(upd_vec.size() > max_batch_size) {
+      throw WriteTooBig("WQ: Batch is too big " + std::to_string(upd_vec.size()) 
+        + " > " + std::to_string(max_batch_size));
+    }
+  }
   std::unique_lock<std::mutex> lk(producer_list_lock);
   producer_condition.wait(lk, [this]{return !full();});
 
@@ -55,15 +63,13 @@ void WorkQueue::push(node_id_t node_idx, std::vector<node_id_t> &upd_vec) {
   producer_list = producer_list->next;
   lk.unlock();
 
-  // set node id and set node's data vector equal to data_vec
-  node->node_idx = node_idx;
-  std::swap(node->data_vec, upd_vec);
+  // swap the batch vectors to perform the update
+  std::swap(node->batches, upd_vec_batch);
 
   // add this block to the consumer queue for processing
   consumer_list_lock.lock();
   node->next = consumer_list;
   consumer_list = node;
-  ++consumer_list_size;
   consumer_list_lock.unlock();
   consumer_condition.notify_one();
 }
@@ -87,42 +93,9 @@ bool WorkQueue::peek(DataNode *&data) {
   // remove head from consumer_list and release lock
   DataNode *node = consumer_list;
   consumer_list = consumer_list->next;
-  --consumer_list_size;
   lk.unlock();
 
   data = node;
-  return true;
-}
-
-bool WorkQueue::peek_batch(std::vector<DataNode *> &node_vec, size_t batch_size) {
-  assert(batch_size <= len); // cannot request a batch bigger than the work queue
-
-  node_vec.clear(); // clear out any old data
-  node_vec.reserve(batch_size);
-
-  // wait until consumer queue is large enough
-  std::unique_lock<std::mutex> lk(consumer_list_lock);
-  //FIXME: This version of batch waiting causes a lot of contention on the mutex.
-  consumer_condition.wait(lk, 
-    [this, batch_size]{return consumer_list_size >= batch_size || non_block;});
-
-  // printf("WQ: Peek-batch\n");
-  // print();
-
-  if (empty()) {
-    lk.unlock();
-    return false;
-  }
-
-  // pull data from head of consumer_list
-  for(size_t i = 0; i < batch_size; i++) {
-    if (consumer_list == nullptr) break; // if non_block is true may not be able to get full batch
-
-    node_vec.push_back(consumer_list);
-    consumer_list = consumer_list->next;
-    --consumer_list_size;
-  }
-  lk.unlock();
   return true;
 }
 
@@ -135,20 +108,6 @@ void WorkQueue::peek_callback(DataNode *node) {
   producer_list_lock.unlock();
   producer_condition.notify_one();
   // printf("WQ: Callback done\n");
-}
-
-void WorkQueue::peek_batch_callback(const std::vector<DataNode *> &node_vec) {
-  for (size_t i = 1; i < node_vec.size(); i++) {
-    node_vec[i-1]->next = node_vec[i]; // fix next pointers just to be sure
-  }
-  DataNode *head = node_vec[0];
-  DataNode *tail = node_vec[node_vec.size() - 1];
-
-  producer_list_lock.lock();
-  tail->next = producer_list;
-  producer_list = head;
-  producer_list_lock.unlock();
-  producer_condition.notify_all(); // we've probably added a bunch of stuff
 }
 
 void WorkQueue::set_non_block(bool _block) {

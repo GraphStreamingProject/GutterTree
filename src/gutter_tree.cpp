@@ -15,11 +15,12 @@
  * and the number of nodes we will insert(N)
  * We assume that node indices begin at 0 and increase to N-1
  */
-GutterTree::GutterTree(std::string dir, node_id_t nodes, int workers, bool reset=false) 
-: GutteringSystem(nodes, workers, true), dir(dir), num_nodes(nodes) {
+GutterTree::GutterTree(std::string dir, node_id_t nodes, int workers, const GutteringConfiguration &conf, 
+ bool reset) 
+: GutteringSystem(nodes, workers, conf, true), dir(dir), num_nodes(nodes) {
   if (buffer_size < page_size) {
-    printf("WARNING: requested buffer size smaller than page_size. Set to page_size.\n");
-    buffer_size = page_size;
+    printf("Invalid buffer size. Must be larger than page size.");
+    exit(EXIT_FAILURE);
   }
   
   // setup universal variables
@@ -372,7 +373,9 @@ void GutterTree::mem_to_wq(node_id_t node_idx, char *mem_addr, uint32_t size) {
     data_vec.push_back(upd.second);
     offset += serial_update_size;
   }
-  wq.push(node_idx, data_vec);
+  std::vector<update_batch> batch_vec;
+  batch_vec.push_back({node_idx, data_vec});
+  wq.push(batch_vec);
 }
 
 flush_ret_t inline GutterTree::flush_leaf_node(flush_struct &flush_from, BufferControlBlock *bcb) {

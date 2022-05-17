@@ -6,8 +6,9 @@
 #include <omp.h>
 #endif
 
-StandAloneGutters::StandAloneGutters(node_id_t num_nodes, uint32_t workers, uint32_t inserters) 
- : GutteringSystem(num_nodes, workers), gutters(num_nodes), inserters(inserters) {
+StandAloneGutters::StandAloneGutters(node_id_t num_nodes, uint32_t workers, uint32_t inserters, 
+ const GutteringConfiguration &conf) : GutteringSystem(num_nodes, workers, conf), gutters(num_nodes), 
+ inserters(inserters) {
   for (node_id_t i = 0; i < num_nodes; ++i) {
     gutters[i].buffer.reserve(leaf_gutter_size);
   }
@@ -36,11 +37,12 @@ insert_ret_t StandAloneGutters::insert_batch(int which, node_id_t gutterid) {
   LocalGutter &lgutter = local_buffers[which][gutterid];
   std::vector<node_id_t> &ptr = gutter.buffer;
 
-  for (size_t i = 0; i < lgutter.count; i++)
-  {
+  for (size_t i = 0; i < lgutter.count; i++) {
     ptr.push_back(lgutter.buffer[i]);
     if (ptr.size() == leaf_gutter_size) { // full, so request flush
-      wq.push(gutterid, ptr);
+      std::vector<update_batch> batch_vec;
+      batch_vec.push_back({gutterid, ptr});
+      wq.push(batch_vec);
       ptr.clear();
     }
   }
@@ -51,13 +53,14 @@ flush_ret_t StandAloneGutters::force_flush() {
 #pragma omp parallel for num_threads(omp_get_max_threads() / 2)
   for (node_id_t node_idx = 0; node_idx < gutters.size(); node_idx++) {
     const std::lock_guard<std::mutex> lock(gutters[node_idx].mux);
-    for (uint32_t which = 0; which < inserters; which++)
-    {
+    for (uint32_t which = 0; which < inserters; which++) {
       //const std::lock_guard<std::mutex> lock(local_buffers[which][node_idx].mux);
       insert_batch(which, node_idx);
     }
     if (!gutters[node_idx].buffer.empty()) { // have stuff to flush
-      wq.push(node_idx, gutters[node_idx].buffer);
+      std::vector<update_batch> batch_vec;
+      batch_vec.push_back({node_idx, gutters[node_idx].buffer});
+      wq.push(batch_vec);
       gutters[node_idx].buffer.clear();
     }
   }
