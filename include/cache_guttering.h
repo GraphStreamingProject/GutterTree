@@ -18,7 +18,6 @@ private:
 
   // TODO: use cmake to establish some compiler constants for these variables
   // currently these are the values for bigboi
-  static constexpr size_t l2_cache_size  = 1048576;  // l2 cache bytes per cpu
   static constexpr size_t cache_line     = 64; // number of bytes in a cache_line
   static constexpr size_t block_size     = 8 * cache_line;
   static constexpr double buffer_growth_factor = 2;
