@@ -22,9 +22,17 @@ static void querier(GutteringSystem *gts) {
 
 static void run_randomized(const int nodes, const unsigned long updates, const unsigned int nthreads=1) {
   shutdown = false;
-  size_t num_workers = 20;
+  size_t num_workers  = 20;
+  size_t page_factor  = 1;
+  size_t buffer_exp   = 20;
+  size_t fanout       = 64;
+  size_t queue_factor = 8;
+  size_t num_flushers = 2;
+  float gutter_factor = 1;
+  size_t wq_batch     = 8;
 
-  GutteringConfiguration conf(1, 20, 64, 8, 2, 1, 8);
+  GutteringConfiguration conf(page_factor, buffer_exp, fanout, queue_factor, num_flushers, 
+                              gutter_factor, wq_batch);
   CacheGuttering *gutters = new CacheGuttering(nodes, num_workers, nthreads, conf);
 
   // create queriers
