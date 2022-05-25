@@ -189,12 +189,12 @@ TEST_P(GuttersTest, TinyGutters) {
 TEST_P(GuttersTest, FlushAndInsertAgain) {
   const int nodes       = 1024;
   const int num_updates = 10000;
-  const int num_flushes = 5;
+  const int num_flushes = 3;
   const int data_workers = 20;
 
   // gutter factor to make buffers size 1
   GutteringConfiguration conf;
-  conf.gutter_factor = 2;
+  conf.gutter_factor = 1;
 
   SystemEnum gts_enum = GetParam();
   GutteringSystem *gts;
@@ -409,7 +409,7 @@ TEST(StandaloneTest, ParallelInserts) {
 
 TEST(CacheGutteringTest, ParallelInserts) {
   const int nodes = 32;
-  const int num_updates = 1000000;
+  const int num_updates = 5000000;
   const int data_workers = 4;
   const int nthreads = 10;
 

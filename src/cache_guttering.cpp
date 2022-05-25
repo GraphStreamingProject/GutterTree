@@ -169,9 +169,24 @@ void CacheGuttering::InsertThread::wq_push_helper(node_id_t node_idx, Leaf_Gutte
   std::swap(local_wq_buffer.batches[local_wq_buffer.size].upd_vec, leaf);
   ++local_wq_buffer.size;
   if (local_wq_buffer.size >= CGsystem.wq_batch_per_elm)
-    CGsystem.wq.push(local_wq_buffer.batches);
-  local_wq_buffer.size = 0;
+    flush_wq_buf();
   leaf.clear();
+}
+
+void CacheGuttering::InsertThread::flush_wq_buf() {
+  // if wq buffer size is less than expected. Then copy into a smaller buffer before push
+  if (local_wq_buffer.size < CGsystem.wq_batch_per_elm) {
+    std::vector<update_batch> vec_copy(local_wq_buffer.batches.begin(), local_wq_buffer.batches.begin() + local_wq_buffer.size);
+
+    // perform the flush
+    CGsystem.wq.push(vec_copy);
+    local_wq_buffer.size = 0;
+    return;
+  }
+
+  // perform the flush
+  CGsystem.wq.push(local_wq_buffer.batches);
+  local_wq_buffer.size = 0;
 }
 
 void CacheGuttering::InsertThread::flush_all() {
@@ -203,6 +218,11 @@ void CacheGuttering::force_flush() {
   if (level4_gutters != nullptr) {
     for (size_t i = 0; i < max_level4_bufs; i++)
       insert_threads[0].flush_buf_l4(i);
+  }
+
+  // flush the local work queue buffer for each InsertThread
+  for (size_t i = 0; i < inserters; i++) {
+    insert_threads[i].flush_wq_buf();
   }
 
   for (node_id_t i = 0; i < num_nodes; i++) {
