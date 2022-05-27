@@ -77,7 +77,7 @@ static void run_randomized(const int nodes, const unsigned long updates, const u
     CPU_SET(j, &cpuset);
     int rc = pthread_setaffinity_np(threads[j].native_handle(), sizeof(cpu_set_t), &cpuset);
     if (rc != 0) {
-      std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+      std::cerr << "Error calling pthread_setaffinity_np for thread " << j << ": " << rc << "\n";
     }
 #endif
   }
@@ -141,7 +141,7 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
     CPU_SET(j, &cpuset);
     int rc = pthread_setaffinity_np(threads[j].native_handle(), sizeof(cpu_set_t), &cpuset);
     if (rc != 0) {
-      std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+      std::cerr << "Error calling pthread_setaffinity_np for thread " << j << ": " << rc << "\n";
     }
 #endif
   }
