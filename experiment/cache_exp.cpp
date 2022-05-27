@@ -7,6 +7,7 @@
 
 static bool shutdown = false;
 static constexpr uint32_t prime = 100000007;
+static std::atomic<size_t> num_updates_processed;
 
 // queries the guttering system
 // Should be run in a seperate thread
@@ -14,13 +15,20 @@ static void querier(GutteringSystem *gts) {
   WorkQueue::DataNode *data;
   while(true) {
     bool valid = gts->get_data(data);
-    if(!valid && shutdown)
+    if (valid) {
+      size_t updates = 0;
+      for (auto batch : data->get_batches())
+        updates += batch.upd_vec.size();
+      num_updates_processed += updates;
+    }
+    else if(shutdown)
       return;
     gts->get_data_callback(data);
   }
 }
 
 static void run_randomized(const int nodes, const unsigned long updates, const unsigned int nthreads=1) {
+  num_updates_processed = 0;
   shutdown = false;
   size_t num_workers  = 20;
   size_t page_factor  = 1;
@@ -69,7 +77,7 @@ static void run_randomized(const int nodes, const unsigned long updates, const u
     CPU_SET(j, &cpuset);
     int rc = pthread_setaffinity_np(threads[j].native_handle(), sizeof(cpu_set_t), &cpuset);
     if (rc != 0) {
-      std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+      std::cerr << "Error calling pthread_setaffinity_np for thread " << j << ": " << rc << "\n";
     }
 #endif
   }
@@ -85,10 +93,14 @@ static void run_randomized(const int nodes, const unsigned long updates, const u
 
   for (size_t t = 0; t < num_workers; t++)
     query_threads[t].join();
+
+  std::cout << "Number of updates processed according to queriers = " << num_updates_processed << std::endl;
+
   delete gutters;
 }
 
 static void run_test(const int nodes, const unsigned long updates, const unsigned int nthreads=1) {
+  num_updates_processed = 0;
   shutdown = false;
   size_t num_workers = 20;
 
@@ -129,7 +141,7 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
     CPU_SET(j, &cpuset);
     int rc = pthread_setaffinity_np(threads[j].native_handle(), sizeof(cpu_set_t), &cpuset);
     if (rc != 0) {
-      std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+      std::cerr << "Error calling pthread_setaffinity_np for thread " << j << ": " << rc << "\n";
     }
 #endif
   }
@@ -145,73 +157,95 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
 
   for (size_t t = 0; t < num_workers; t++)
     query_threads[t].join();
+
+  std::cout << "Number of updates processed according to queriers = " << num_updates_processed << std::endl;
   delete gutters;
 }
 
 TEST(CG_Throughput, kron15_10threads) {
   run_test(32768, 280025434, 10);
+  ASSERT_EQ(num_updates_processed, 280025434 * 2);
 }
 TEST(CG_Throughput, kron15_20threads) {
   run_test(32768, 280025434, 20);
+  ASSERT_EQ(num_updates_processed, 280025434 * 2);
 }
 
 TEST(CG_Throughput, kron17_10threads) {
   run_test(131072, 4474931789, 10);
+  ASSERT_EQ(num_updates_processed, 4474931789 * 2);
 }
 TEST(CG_Throughput, kron17_20threads) {
   run_test(131072, 4474931789, 20);
+  ASSERT_EQ(num_updates_processed, 4474931789 * 2);
 }
 
 TEST(CG_Throughput, EpsilonOver_kron17_10threads) {
   run_test(131073, 4474931789, 10);
+  ASSERT_EQ(num_updates_processed, 4474931789 * 2);
 }
 TEST(CG_Throughput, EpsilonOver_kron17_20threads) {
   run_test(131073, 4474931789, 20);
+  ASSERT_EQ(num_updates_processed, 4474931789 * 2);
 }
 
 TEST(CG_Throughput, kron18_10threads) {
   run_test(262144, 17891985703, 10);
+  ASSERT_EQ(num_updates_processed, 17891985703 * 2);
 }
 TEST(CG_Throughput, kron18_20threads) {
   run_test(262144, 17891985703, 20);
+  ASSERT_EQ(num_updates_processed, 17891985703 * 2);
 }
 TEST(CG_Throughput, kron18_24threads) {
   run_test(262144, 17891985703, 24);
+  ASSERT_EQ(num_updates_processed, 17891985703 * 2);
 }
 TEST(CG_Throughput, kron18_48threads) {
   run_test(262144, 17891985703, 48);
+  ASSERT_EQ(num_updates_processed, 17891985703 * 2);
 }
 
 TEST(CG_Throughput_Rand, kron15_10threads) {
   run_randomized(32768, 280025434, 10);
+  ASSERT_EQ(num_updates_processed, 280025434 * 2);
 }
 TEST(CG_Throughput_Rand, kron15_20threads) {
   run_randomized(32768, 280025434, 20);
+  ASSERT_EQ(num_updates_processed, 280025434 * 2);
 }
 
 TEST(CG_Throughput_Rand, kron17_10threads) {
   run_randomized(131072, 4474931789, 10);
+  ASSERT_EQ(num_updates_processed, 4474931789 * 2);
 }
 TEST(CG_Throughput_Rand, kron17_20threads) {
   run_randomized(131072, 4474931789, 20);
+  ASSERT_EQ(num_updates_processed, 4474931789 * 2);
 }
 
 TEST(CG_Throughput_Rand, EpsilonOver_kron17_10threads) {
   run_randomized(131073, 4474931789, 10);
+  ASSERT_EQ(num_updates_processed, 4474931789 * 2);
 }
 TEST(CG_Throughput_Rand, EpsilonOver_kron17_20threads) {
   run_randomized(131073, 4474931789, 20);
+  ASSERT_EQ(num_updates_processed, 4474931789 * 2);
 }
 
 TEST(CG_Throughput_Rand, kron18_10threads) {
   run_randomized(262144, 17891985703, 10);
+  ASSERT_EQ(num_updates_processed, 17891985703 * 2);
 }
 TEST(CG_Throughput_Rand, kron18_20threads) {
   run_randomized(262144, 17891985703, 20);
+  ASSERT_EQ(num_updates_processed, 17891985703 * 2);
 }
 TEST(CG_Throughput_Rand, kron18_24threads) {
   run_randomized(262144, 17891985703, 24);
+  ASSERT_EQ(num_updates_processed, 17891985703 * 2);
 }
 TEST(CG_Throughput_Rand, kron18_48threads) {
   run_randomized(262144, 17891985703, 48);
+  ASSERT_EQ(num_updates_processed, 17891985703 * 2);
 }

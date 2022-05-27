@@ -87,6 +87,7 @@ private:
     void flush_buf_l4(const node_id_t idx);
     void flush_all(); // flush entire structure
     void wq_push_helper(node_id_t node_idx, Leaf_Gutter &leaf);
+    void flush_wq_buf();
 
     // Buffer for performing batch push to work queue
     WQ_Buffer local_wq_buffer;

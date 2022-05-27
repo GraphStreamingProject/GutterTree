@@ -105,4 +105,7 @@ if (BUILD_EXE)
     experiment/cache_exp.cpp
     experiment/standalone_exp.cpp)
   target_link_libraries(buffering_experiment PRIVATE GutterTree)
+  if (UNIX AND NOT APPLE)
+    target_compile_options(buffering_experiment PRIVATE -DLINUX_FALLOCATE)
+  endif()
 endif()
