@@ -174,7 +174,10 @@ void CacheGuttering::InsertThread::wq_push_helper(node_id_t node_idx, Leaf_Gutte
 }
 
 void CacheGuttering::InsertThread::flush_wq_buf() {
-  // if wq buffer size is less than expected. Then copy into a smaller buffer before push
+  // if nothing to flush then don't
+  if (local_wq_buffer.size == 0) return;
+
+  // if wq buffer size is less than expected
   if (local_wq_buffer.size < CGsystem.wq_batch_per_elm) {
     // clear the batches beyond wq buffer size
     for (size_t i = local_wq_buffer.size; i < CGsystem.wq_batch_per_elm; i++)
