@@ -101,17 +101,7 @@ public:
     return *this;
   }
 
-  void print() const {
-    std::cout << "GutteringSystem Configuration:" << std::endl;
-    std::cout << " Background threads = " << _num_flushers << std::endl;
-    std::cout << " Leaf gutter factor = " << _gutter_factor << std::endl;
-    std::cout << " WQ elements factor = " << _queue_factor << std::endl;
-    std::cout << " WQ batches per elm = " << _wq_batch_per_elm << std::endl;
-    std::cout << " GutterTree params:"    << std::endl;
-    std::cout << "  Write granularity = " << _page_size << std::endl;
-    std::cout << "  Buffer size       = " << _buffer_size << std::endl;
-    std::cout << "  Fanout            = " << _fanout << std::endl;
-  }
+  friend std::ostream& operator<<(std::ostream& out, const GutteringConfiguration& dt);
 
   // no use of equal operator
   GutteringConfiguration &operator=(const GutteringConfiguration &) = delete;
@@ -120,3 +110,16 @@ public:
   GutteringConfiguration(const GutteringConfiguration &) = default;
   GutteringConfiguration (GutteringConfiguration &&) = default;
 };
+
+std::ostream& operator<<(std::ostream& out, const GutteringConfiguration& conf) {
+  out << "GutteringSystem Configuration:" << std::endl;
+  out << " Background threads = " << conf._num_flushers << std::endl;
+  out << " Leaf gutter factor = " << conf._gutter_factor << std::endl;
+  out << " WQ elements factor = " << conf._queue_factor << std::endl;
+  out << " WQ batches per elm = " << conf._wq_batch_per_elm << std::endl;
+  out << " GutterTree params:"    << std::endl;
+  out << "  Write granularity = " << conf._page_size << std::endl;
+  out << "  Buffer size       = " << conf._buffer_size << std::endl;
+  out << "  Fanout            = " << conf._fanout << std::endl;
+  return out;
+}
