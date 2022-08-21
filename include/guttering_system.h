@@ -8,10 +8,10 @@ class GutteringSystem {
 public:
   // Constructor for programmatic configuration
   GutteringSystem(node_id_t num_nodes, int workers, const GutteringConfiguration &conf, bool page_slots=false) : 
-   page_size(conf.page_size), buffer_size(conf.buffer_size), 
-   fanout(conf.fanout), num_flushers(conf.num_flushers), gutter_factor(conf.gutter_factor),
-   queue_factor(conf.queue_factor), wq_batch_per_elm(conf.wq_batch_per_elm),
-   leaf_gutter_size(std::max((int)(conf.gutter_factor * upds_per_sketch(num_nodes)), 1)),
+   page_size(conf._page_size), buffer_size(conf._buffer_size), 
+   fanout(conf._fanout), num_flushers(conf._num_flushers), gutter_factor(conf._gutter_factor),
+   queue_factor(conf._queue_factor), wq_batch_per_elm(conf._wq_batch_per_elm),
+   leaf_gutter_size(std::max((int)(conf._gutter_factor * upds_per_sketch(num_nodes)), 1)),
    wq(workers * queue_factor,
     page_slots ? leaf_gutter_size + page_size / sizeof(node_id_t) : leaf_gutter_size, 
     wq_batch_per_elm) {conf.print();}
