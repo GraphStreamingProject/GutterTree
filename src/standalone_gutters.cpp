@@ -18,7 +18,7 @@ StandAloneGutters::StandAloneGutters(node_id_t num_nodes, uint32_t workers, uint
   }
 }
 
-insert_ret_t StandAloneGutters::insert(const update_t &upd, int which) {
+insert_ret_t StandAloneGutters::insert(const update_t &upd, unsigned int which) {
   LocalGutter &lgutter = local_buffers[which][upd.first];
 	lgutter.buffer[lgutter.count++] = upd.second;
   if (lgutter.count == local_buf_size) { // full, so request flush
@@ -32,7 +32,7 @@ insert_ret_t StandAloneGutters::insert(const update_t &upd) {
 }
 
 // We already hold the lock on both buffers
-insert_ret_t StandAloneGutters::insert_batch(int which, node_id_t gutterid) {
+insert_ret_t StandAloneGutters::insert_batch(unsigned int which, node_id_t gutterid) {
   Gutter &gutter = gutters[gutterid];
   LocalGutter &lgutter = local_buffers[which][gutterid];
   std::vector<node_id_t> &ptr = gutter.buffer;

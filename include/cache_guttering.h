@@ -129,7 +129,7 @@ public:
    * @param which, which thread is inserting this update
    * @return nothing.
    */
-  insert_ret_t insert(const update_t &upd, int which) { 
+  insert_ret_t insert(const update_t &upd, unsigned int which) { 
     assert(which < inserters);
     insert_threads[which].insert(upd);
   }

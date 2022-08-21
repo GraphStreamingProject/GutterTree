@@ -27,7 +27,7 @@ private:
    * @param upd the edge update.
    * @return nothing.
    */
-  insert_ret_t insert_batch(int which, node_id_t gutterid);
+  insert_ret_t insert_batch(unsigned int which, node_id_t gutterid);
 
 public:
   /**
@@ -46,7 +46,7 @@ public:
    * @param upd the edge update.
    * @return nothing.
    */
-  insert_ret_t insert(const update_t &upd, int which);
+  insert_ret_t insert(const update_t &upd, unsigned int which);
   // pure virtual functions don't like default params
   insert_ret_t insert(const update_t &upd);
 
