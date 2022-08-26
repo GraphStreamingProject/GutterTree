@@ -19,7 +19,7 @@ public:
   
   virtual ~GutteringSystem() {};
   virtual insert_ret_t insert(const update_t &upd) = 0; //insert an element to the guttering system
-  virtual insert_ret_t insert(const update_t &upd, unsigned int which) {insert(upd);(void)(which);}; //discard second argument by default
+  virtual insert_ret_t insert(const update_t &upd, size_t which) {insert(upd);(void)(which);}; //discard second argument by default
   virtual flush_ret_t force_flush() = 0;                //force all data out of buffers
 
   // get the size of a work queue elmement in bytes
