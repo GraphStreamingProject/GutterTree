@@ -64,6 +64,7 @@ add_library(GutterTree
   src/work_queue.cpp
   include/work_queue.h
   include/guttering_system.h
+  src/guttering_configuration.cpp
   include/guttering_configuration.h
   src/gutter_tree.cpp
   include/gutter_tree.h

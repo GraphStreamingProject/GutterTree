@@ -125,9 +125,9 @@ TEST_P(GuttersTest, Small) {
   const int data_workers = 1;
   
   // Guttering System configuration
-  GutteringConfiguration conf;
-  conf.buffer_size = 1 << 15;
-  conf.fanout = 2;
+  auto conf = GutteringConfiguration()
+              .buffer_exp(15)
+              .fanout(2);
 
   run_test(nodes, num_updates, data_workers, GetParam(), conf);
 }
@@ -138,9 +138,9 @@ TEST_P(GuttersTest, Medium) {
   const int data_workers = 1;
 
   // Guttering System configuration
-  GutteringConfiguration conf;
-  conf.buffer_size = 1 << 20;
-  conf.fanout = 8;
+  auto conf = GutteringConfiguration()
+              .buffer_exp(20)
+              .fanout(8);
 
   run_test(nodes, num_updates, data_workers, GetParam(), conf);
 }
@@ -151,9 +151,9 @@ TEST_P(GuttersTest, ManyInserts) {
   const int data_workers = 4;
 
   // Guttering System configuration
-  GutteringConfiguration conf;
-  conf.buffer_size = 1 << 20;
-  conf.fanout = 2;
+  auto conf = GutteringConfiguration()
+              .buffer_exp(20)
+              .fanout(2);
 
   run_test(nodes, num_updates, data_workers, GetParam(), conf);
 }
@@ -164,9 +164,9 @@ TEST(GuttersTest, ManyInsertsParallel) {
   const int data_workers = 4;
 
   // Guttering System configuration
-  GutteringConfiguration conf;
-  conf.buffer_size = 1 << 20;
-  conf.fanout = 2;
+  auto conf = GutteringConfiguration()
+              .buffer_exp(20)
+              .fanout(2);
 
   run_test(nodes, num_updates, data_workers, STANDALONE, conf, 10);
 }
@@ -177,11 +177,11 @@ TEST_P(GuttersTest, TinyGutters) {
   const int data_workers = 4;
 
   // gutter factor to make buffers size 1
-  GutteringConfiguration conf;
-  conf.buffer_size = 1 << 16;
-  conf.fanout = 16;
-  conf.gutter_factor = -1 * GutteringSystem::upds_per_sketch(nodes);
-  conf.queue_factor = 1;
+  auto conf = GutteringConfiguration()
+              .buffer_exp(16)
+              .fanout(16)
+              .gutter_factor(-1 * GutteringSystem::upds_per_sketch(nodes))
+              .queue_factor(1);
 
   run_test(nodes, num_updates, data_workers, GetParam(), conf);
 }
@@ -193,8 +193,8 @@ TEST_P(GuttersTest, FlushAndInsertAgain) {
   const int data_workers = 20;
 
   // gutter factor to make buffers size 1
-  GutteringConfiguration conf;
-  conf.gutter_factor = 1;
+  auto conf = GutteringConfiguration()
+              .gutter_factor(1);
 
   SystemEnum gts_enum = GetParam();
   GutteringSystem *gts;
@@ -255,9 +255,9 @@ TEST_P(GuttersTest, GetDataBatched) {
   const int data_workers = 10;
 
   // gutter factor to make buffers size 1
-  GutteringConfiguration conf;
-  conf.queue_factor = 20;
-  conf.wq_batch_per_elm = data_batch_size;
+  auto conf = GutteringConfiguration()
+              .queue_factor(20)
+              .wq_batch_per_elm(data_batch_size);
 
   SystemEnum gts_enum = GetParam();
   GutteringSystem *gts;
@@ -319,9 +319,9 @@ TEST(GutterTreeTests, EvilInsertions) {
   const int nodes       = 32;
   const int num_updates = 4 * full_root;
 
-  GutteringConfiguration conf;
-  conf.buffer_size = 1 << 20;
-  conf.fanout = 2;
+  auto conf = GutteringConfiguration()
+              .buffer_exp(20)
+              .fanout(2);
 
   GutterTree *gt = new GutterTree("./test_", nodes, 1, conf, true); //1=num_workers
   shutdown = false;
@@ -363,11 +363,11 @@ TEST(GutterTreeTests, ParallelInsert) {
   const int nodes       = 1024;
   const int num_updates = 400000;
 
-  GutteringConfiguration conf;
-  conf.buffer_size = 1 << 17;
-  conf.fanout = 8;
-  conf.num_flushers = 8;
-  conf.queue_factor = 1;
+  auto conf = GutteringConfiguration()
+              .buffer_exp(17)
+              .fanout(8)
+              .num_flushers(8)
+              .queue_factor(1);
 
   GutterTree *gt = new GutterTree("./test_", nodes, 5, conf, true);
   shutdown = false;
