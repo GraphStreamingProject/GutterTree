@@ -81,6 +81,6 @@ std::ostream& operator<<(std::ostream& out, const GutteringConfiguration& conf) 
   out << " GutterTree params:"    << std::endl;
   out << "  Write granularity = " << conf._page_size << std::endl;
   out << "  Buffer size       = " << conf._buffer_size << std::endl;
-  out << "  Fanout            = " << conf._fanout << std::endl;
+  out << "  Fanout            = " << conf._fanout;
   return out;
 }
