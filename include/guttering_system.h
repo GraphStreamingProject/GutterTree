@@ -15,7 +15,7 @@ public:
    leaf_gutter_size(std::max((int)(conf._gutter_factor * upds_per_sketch(num_nodes)), 1)),
    wq(workers * queue_factor,
     page_slots ? leaf_gutter_size + page_size / sizeof(node_id_t) : leaf_gutter_size, 
-    wq_batch_per_elm) {std::cout << conf << std::endl;}
+    wq_batch_per_elm) {}
   
   virtual ~GutteringSystem() {};
   virtual insert_ret_t insert(const update_t &upd) = 0; //insert an element to the guttering system
