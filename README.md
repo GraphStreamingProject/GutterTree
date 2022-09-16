@@ -1,7 +1,7 @@
-# GutterTree
-A fast external memory buffering system for graph streaming.
+# Guttering Systems
+Data-structures for efficient external-memory and in-memory guttering systems.
 
-The following describes some of the basics of how this works. There are three key objects `GutterTree`, `BufferControlBlock`, and `WorkQueue`.
+The following describes some of the basics of how the GutterTree works.
 
 ## GutterTree
 This class specifies most of the meta-data and functions for handling a gutter tree. Specifically, the gutter tree maintains a list of nodes that compose the tree in addition to some other buffers used to enable efficient IO when either flushing or reading data from a node.
@@ -27,7 +27,7 @@ When flushing we utilize `flush_buffers` to achieve efficient file writing. The 
 A flush of a leaf node is simply accomplished by moving the data in question into the `WorkQueue`. If the WorkQueue is full then this insertion is blocked until the queue is no longer full.
 
 
-## BufferControlBlock
+### BufferControlBlock
 Encodes the meta-data associated with a block including its `file_offset` and `storage_ptr`. These two attributes represent the location of a node within the large and physically contiguous `backing_store` file. The nodes of the tree are stored in the file following a breadth first search. Specifically, the data stored within the buffer at each node is what is held within the file. Therefore the data in each level is contiguous on disk.
 
 Example:  
@@ -57,12 +57,13 @@ The WorkQueue is designed with a limited size. This is because RAM usage needs t
 
 The structure of the WorkQueue is as follows
 ```
------------------------------------------------------------------------------------
-| node 4 updates | clean | clean | node 1 updates | node 2 updates| node 3 updates|
------------------------------------------------------------------------------------
-                   ^ Head                             ^ Tail
+                ---------- -> ---------- -> ----------
+producer_queue: | empty  |    | empty  |    | empty  |  
+                ---------- <- ---------- <- ----------
+
+                ----------- -> ----------- -> ----------- -> -----------
+consumer_queue: | updates |    | updates |    | updates |    | updates |    
+                ----------- <- ----------- <- ----------- <- -----------
 ```
 
-`Head` marks the where the next insertion to the CircularQueue should take place and `Tail` marks where the next read should happen from. Slots are marked `clean` if their data has been taken out of the queue and processed. The queue is full if the head ever points to a `dirty` slot and empty if `Head` and `Tail` point to the same slot (which is also clean).
-
-Note in this example that `Tail` does not point to the updates for node 1. This is because the data for node 1 is currently being processed by a query. Once this query finishes, the thread performing the query will mark the slot with `node 1 updates` as clean.
+The `producer queue` contains empty gutters ready to be filled and placed into the `consumer_queue`. `get_data()` calls return the head of the `consumer_queue`. Callbacks are necessary to place gutters back into the producer queue.
