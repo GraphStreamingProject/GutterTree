@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <thread>
 #include <atomic>
 #include <fstream>
@@ -416,4 +417,104 @@ TEST(CacheGutteringTest, ParallelInserts) {
   GutteringConfiguration conf;
 
   run_test(nodes, num_updates, data_workers, CACHETREE, conf, nthreads);
+}
+
+TEST(CacheGutteringTest, RelabellingOffset) {
+  const int nodes = 1024;
+  const int relabelling_offset = 1024;
+  const int num_updates = 5000000;
+  const int data_workers = 4;
+  const int nthreads = 10;
+
+  GutteringConfiguration conf;
+
+  // ==== shameless copy of run_test ====
+  // helper function to run a basic test of the buffer tree with
+  // various parameters
+  // this test only works if the depth of the tree does not exceed 1
+  // and no work is claimed off of the work queue
+  // to work correctly num_updates must be a multiple of nodes
+  auto gts = new CacheGuttering(nodes, data_workers, nthreads, conf);
+  gts->set_offset(relabelling_offset);
+  printf("Running Test: system=%s, nodes=%i, num_updates=%i\n",
+    "CacheGuttering", nodes, num_updates);
+
+  shutdown = false;
+  upd_processed = 0;
+
+  // In case there are multiple threads
+  std::vector<std::thread> threads;
+  threads.reserve(nthreads);
+  std::vector<std::vector<update_t>> recorded_insertions(nthreads, std::vector<update_t>());
+  std::vector<std::vector<update_t>> retrieved_insertions(data_workers, std::vector<update_t>());
+  // This is the work to do per thread (rounded up)
+  const int work_per = (num_updates+nthreads-1) / nthreads;
+
+  auto task = [&](const int j){
+    for (int i = j * work_per; i < (j+1) * work_per && i < num_updates; i++) {
+      update_t upd;
+      upd.first = i % nodes + relabelling_offset;
+      upd.second = (nodes - 1) - (i % nodes);
+      gts->insert(upd, j);
+      recorded_insertions[j].push_back(upd);
+    }
+  };
+  auto query_task = [&](const int j) {
+    WorkQueue::DataNode *data;
+    while(true) {
+      bool valid = gts->get_data(data);
+      if (valid) {
+        std::vector<update_batch> batches = data->get_batches();
+        for (auto batch : batches) {
+          node_id_t key = batch.node_idx;
+          std::vector<node_id_t> upd_vec = batch.upd_vec;
+          std::cout << "Retrieved " << upd_vec.size() << "insertions" << std::endl;
+          for (auto upd : upd_vec) {
+            retrieved_insertions[j].push_back({key, upd});
+          }
+          std::cout << "Retried size " << retrieved_insertions[j].size() << std::endl;
+        }
+        gts->get_data_callback(data);
+      }
+      else if(shutdown)
+        return;
+    }
+  };
+
+  std::thread query_threads[data_workers];
+  for (int t = 0; t < data_workers; t++) {
+    query_threads[t] = std::thread(query_task, t);
+  }
+
+  // Spin up then join threads
+  for (int j = 0; j < nthreads; j++)
+    threads.emplace_back(task, j);
+  for (int j = 0; j < nthreads; j++)
+    threads[j].join();
+
+
+  printf("force flush\n");
+  gts->force_flush();
+  shutdown = true;
+  gts->set_non_block(true); // switch to non-blocking calls in an effort to exit
+  
+  for (int t = 0; t < data_workers; t++)
+    query_threads[t].join();
+
+  std::vector<update_t> catted_recorded;
+  std::vector<update_t> catted_retrieved;
+  catted_recorded.reserve(num_updates);
+  catted_retrieved.reserve(num_updates);
+  for (auto vec : recorded_insertions) {
+    catted_recorded.insert(catted_recorded.end(), vec.begin(), vec.end());
+  }
+  for (auto vec : retrieved_insertions) {
+    catted_retrieved.insert(catted_retrieved.end(), vec.begin(), vec.end());
+  }
+  std::sort(catted_recorded.begin(), catted_recorded.end());
+  std::sort(catted_retrieved.begin(), catted_retrieved.end());
+
+  ASSERT_EQ(catted_recorded, catted_retrieved);
+
+  delete gts;
 }

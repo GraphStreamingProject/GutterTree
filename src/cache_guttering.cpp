@@ -67,7 +67,8 @@ CacheGuttering::~CacheGuttering() {
   delete[] level3_flush_locks;
 }
 
-void CacheGuttering::InsertThread::insert(const update_t &upd) {
+void CacheGuttering::InsertThread::insert(update_t upd) {
+  upd.first -= CGsystem.relabelling_offset;
   node_id_t l1_idx = extract_left_bits(upd.first, CGsystem.level1_pos);
   auto &gutter = level1_gutters[l1_idx];
   gutter.data[gutter.num_elms++] = upd;
@@ -165,7 +166,7 @@ void CacheGuttering::InsertThread::flush_buf_l4(const node_id_t idx) {
 }
 
 void CacheGuttering::InsertThread::wq_push_helper(node_id_t node_idx, Leaf_Gutter &leaf) {
-  local_wq_buffer.batches[local_wq_buffer.size].node_idx = node_idx;
+  local_wq_buffer.batches[local_wq_buffer.size].node_idx = node_idx + CGsystem.relabelling_offset;
   std::swap(local_wq_buffer.batches[local_wq_buffer.size].upd_vec, leaf);
   ++local_wq_buffer.size;
   if (local_wq_buffer.size >= CGsystem.wq_batch_per_elm)

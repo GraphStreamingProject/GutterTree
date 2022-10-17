@@ -12,7 +12,7 @@ constexpr int log2_constexpr(size_t num) {
 }
 
 class CacheGuttering : public GutteringSystem {
-private:
+ private:
   size_t inserters;
   node_id_t num_nodes;
 
@@ -48,6 +48,9 @@ private:
   size_t level4_fanout   = 0;
   size_t level4_elms_per_buf = 0;
 
+  // offset for insertion re-labelling
+  node_id_t relabelling_offset = 0;
+
   using RAM_Gutter  = std::vector<update_t>;
   using Leaf_Gutter = std::vector<node_id_t>;
   template <size_t num_slots>
@@ -62,7 +65,7 @@ private:
   };
 
   class InsertThread {
-    private:
+   private:
     CacheGuttering &CGsystem; // reference to associated CacheGuttering system
 
     // thread local gutters
@@ -70,7 +73,7 @@ private:
     std::array<Cache_Gutter<level2_elms_per_buf>, level2_bufs> level2_gutters;
     std::array<Cache_Gutter<level3_elms_per_buf>, level3_bufs> level3_gutters;
 
-  public:
+   public:
     InsertThread(CacheGuttering &CGsystem) : CGsystem(CGsystem) {
       local_wq_buffer.batches.resize(CGsystem.wq_batch_per_elm);
       for (auto &batch : local_wq_buffer.batches)
@@ -78,7 +81,7 @@ private:
     };
 
     // insert an update into the local buffers
-    void insert(const update_t &upd);
+    void insert(update_t upd);
 
     // functions for flushing local buffers
     void flush_buf_l1(const node_id_t idx);
@@ -110,7 +113,7 @@ private:
   friend class InsertThread;
 
   std::vector<InsertThread> insert_threads; // vector of InsertThreads
-public:
+ public:
   /**
    * Constructs a new guttering systems using a tree like structure for cache efficiency.
    * @param nodes       number of nodes in the graph.
@@ -143,6 +146,16 @@ public:
    * @return nothing.
    */
   flush_ret_t force_flush();
+
+  /**
+   * Set the "offset" for incoming edges. That is, if we set an offset of x, an incoming edge
+   * {i,j} will be stored internally as an edge {i - x, j}. Use only for integration with
+   * distributed guttering. If you don't know what that means, don't use this function!
+   * 
+   * @param offset 
+   * @return a reference to the parent CacheGuttering object.
+   */
+  CacheGuttering& set_offset(node_id_t offset) { relabelling_offset = offset; return *this; }
 
   /*
    * Helper function for tracing a root to leaf path. Prints path to stdout
