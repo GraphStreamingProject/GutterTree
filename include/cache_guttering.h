@@ -1,3 +1,4 @@
+#pragma once
 #include "guttering_system.h"
 #include <array>
 #include <cassert>
