@@ -468,11 +468,9 @@ TEST(CacheGutteringTest, RelabellingOffset) {
         for (auto batch : batches) {
           node_id_t key = batch.node_idx;
           std::vector<node_id_t> upd_vec = batch.upd_vec;
-          std::cout << "Retrieved " << upd_vec.size() << "insertions" << std::endl;
           for (auto upd : upd_vec) {
             retrieved_insertions[j].push_back({key, upd});
           }
-          std::cout << "Retried size " << retrieved_insertions[j].size() << std::endl;
         }
         gts->get_data_callback(data);
       }
