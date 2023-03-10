@@ -21,24 +21,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    
-    - uses: actions/cache@v2
-      id: InstalledDependencyCache
-      with:
-        path: ${{runner.workspace}}/install
-        key: InstalledDependencyCache
-
-    - name: Install GTest
-      if: steps.InstalledDependencyCache.outputs.cache-hit != 'true'
-      shell: bash
-      working-directory: ${{runner.workspace}}
-      run: |
-        git clone -b release-1.10.0 https://github.com/google/googletest.git
-        cd googletest
-        mkdir build
-        cd build
-        cmake -DCMAKE_INSTALL_PREFIX=${{runner.workspace}}/install ..
-        cmake --build . --target install
         
     - name: Create Build Environment (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
