@@ -33,9 +33,9 @@ public:
   }
 
   // get data out of the guttering system either one gutter at a time or in a batched fashion
-  bool get_data(WorkQueue::DataNode *&data) { return wq.peek(data); }
-  void get_data_callback(WorkQueue::DataNode *data) { wq.peek_callback(data); }
-  void set_non_block(bool block) { wq.set_non_block(block);} //set non-blocking calls in wq
+  virtual bool get_data(WorkQueue::DataNode *&data) { return wq.peek(data); }
+  virtual void get_data_callback(WorkQueue::DataNode *data) { wq.peek_callback(data); }
+  virtual void set_non_block(bool block) { wq.set_non_block(block);} //set non-blocking calls in wq
 protected:
   // parameters of the GutteringSystem, defined by the GutteringConfiguration param or config file
   const uint32_t page_size;      // guttertree -- write granularity
