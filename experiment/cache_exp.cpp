@@ -36,7 +36,7 @@ static void run_randomized(const int nodes, const unsigned long updates, const u
   size_t fanout       = 64;
   size_t queue_factor = 8;
   size_t num_flushers = 2;
-  float gutter_factor = 1;
+  size_t gutter_size  = 32 * 1024;
   size_t wq_batch     = 8;
 
   auto conf = GutteringConfiguration()
@@ -45,7 +45,7 @@ static void run_randomized(const int nodes, const unsigned long updates, const u
               .fanout(fanout)
               .queue_factor(queue_factor)
               .num_flushers(num_flushers)
-              .gutter_factor(gutter_factor)
+              .gutter_bytes(gutter_size)
               .wq_batch_per_elm(wq_batch);
 
   CacheGuttering *gutters = new CacheGuttering(nodes, num_workers, nthreads, conf);
@@ -117,7 +117,7 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
               .fanout(64)
               .queue_factor(8)
               .num_flushers(2)
-              .gutter_factor(1)
+              .gutter_bytes(32 * 1024)
               .wq_batch_per_elm(8);
   CacheGuttering *gutters = new CacheGuttering(nodes, num_workers, nthreads, conf);
 

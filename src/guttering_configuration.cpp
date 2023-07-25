@@ -55,14 +55,12 @@ GutteringConfiguration& GutteringConfiguration::num_flushers(uint32_t num_flushe
   return *this;
 }
 
-GutteringConfiguration& GutteringConfiguration::gutter_factor(float gutter_factor) {
-  _gutter_factor = gutter_factor;
-  if (_gutter_factor < 1 && _gutter_factor > -1) {
-    printf("WARNING: gutter_factor must be outside of range -1 < x < 1 using default(1)\n");
-    _gutter_factor = 1;
+GutteringConfiguration& GutteringConfiguration::gutter_bytes(uint32_t gutter_bytes) {
+  _gutter_bytes = gutter_bytes;
+  if (_gutter_bytes < 1) {
+    printf("WARNING: gutter_bytes must be at least 1, using default(32 KiB)\n");
+    _gutter_bytes = 32 * 1024;
   }
-  if (_gutter_factor < 0)
-    _gutter_factor = 1 / (-1 * _gutter_factor); // gutter factor reduces size if negative
 
   return *this;
 }
@@ -75,7 +73,7 @@ GutteringConfiguration& GutteringConfiguration::wq_batch_per_elm(size_t wq_batch
 std::ostream& operator<<(std::ostream& out, const GutteringConfiguration& conf) {
   out << "GutteringSystem Configuration:" << std::endl;
   out << " Background threads = " << conf._num_flushers << std::endl;
-  out << " Leaf gutter factor = " << conf._gutter_factor << std::endl;
+  out << " Leaf Size in KiB   = " << float(conf._gutter_bytes) / 1024.0 << std::endl;
   out << " WQ elements factor = " << conf._queue_factor << std::endl;
   out << " WQ batches per elm = " << conf._wq_batch_per_elm << std::endl;
   out << " GutterTree params:"    << std::endl;

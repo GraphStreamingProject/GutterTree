@@ -94,19 +94,19 @@ endif ()
 target_include_directories(GutterTree PUBLIC include/)
 
 if (BUILD_EXE)
-  add_executable(buffering_tests
+  add_executable(guttering_tests
     test/runner.cpp
     test/guttering_systems_test.cpp
     # test/cache_gutter_tree_test.cpp
   )
-  target_link_libraries(buffering_tests PRIVATE GutterTree)
+  target_link_libraries(guttering_tests PRIVATE GutterTree)
 
-  add_executable(buffering_experiment
+  add_executable(guttering_experiment
     experiment/runner.cpp
     experiment/cache_exp.cpp
     experiment/standalone_exp.cpp)
-  target_link_libraries(buffering_experiment PRIVATE GutterTree)
+  target_link_libraries(guttering_experiment PRIVATE GutterTree)
   if (UNIX AND NOT APPLE)
-    target_compile_options(buffering_experiment PRIVATE -DLINUX_FALLOCATE)
+    target_compile_options(guttering_experiment PRIVATE -DLINUX_FALLOCATE)
   endif()
 endif()

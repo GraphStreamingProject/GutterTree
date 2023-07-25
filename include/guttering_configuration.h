@@ -20,8 +20,8 @@ private:
   // the number of flush threads
   uint32_t _num_flushers = 2;
   
-  // factor which increases/decreases the leaf gutter size
-  float _gutter_factor = 1;
+  // the size of each leaf gutter in bytes
+  uint32_t _gutter_bytes = 32 * 1024;
   
   // number of batches placed into or removed from the queue in one push or peek operation
   size_t _wq_batch_per_elm = 1;
@@ -42,7 +42,7 @@ public:
   
   GutteringConfiguration& num_flushers(uint32_t num_flushers);
   
-  GutteringConfiguration& gutter_factor(float gutter_factor);
+  GutteringConfiguration& gutter_bytes(uint32_t gutter_bytes);
   
   GutteringConfiguration& wq_batch_per_elm(size_t wq_batch_per_elm);
 
