@@ -82,12 +82,12 @@ std::ostream& operator<<(std::ostream& out, GutteringConfiguration conf) {
 
   out << "GutteringSystem Configuration:" << std::endl;
   out << " Background threads = " << conf._num_flushers << std::endl;
-  out << " Updates per leaf   = " << conf._gutter_bytes / sizeof(node_id_t) << std::endl;
+  out << " Updates per batch  = " << conf._gutter_bytes / sizeof(node_id_t) << std::endl;
   out << " WQ elements factor = " << conf._queue_factor << std::endl;
   out << " WQ batches per elm = " << conf._wq_batch_per_elm << std::endl;
   out << " GutterTree params:"    << std::endl;
   out << "  Write granularity = " << conf._page_size << std::endl;
-  out << "  Buffer size (MiB) = " << conf._buffer_size / 1024.0 / 1024.0 << std::endl;
+  out << "  Buffer size (KiB) = " << conf._buffer_size / 1024 << std::endl;
   out << "  Fanout            = " << conf._fanout;
   return out;
 }
