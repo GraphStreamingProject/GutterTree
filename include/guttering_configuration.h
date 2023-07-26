@@ -1,4 +1,7 @@
 #pragma once
+#include <unistd.h>
+#include <iostream>
+#include <string>
 
 // forward declaration
 class GutteringSystem;
@@ -50,7 +53,7 @@ public:
   size_t get_gutter_bytes()     { return _gutter_bytes; }
   size_t get_wq_batch_per_elm() { return _wq_batch_per_elm; }
 
-  friend std::ostream& operator<<(std::ostream& out, const GutteringConfiguration& dt);
+  friend std::ostream& operator<<(std::ostream& out, GutteringConfiguration conf);
 
   // no use of equal operator
   GutteringConfiguration &operator=(const GutteringConfiguration &) = delete;
