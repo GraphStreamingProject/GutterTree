@@ -9,9 +9,9 @@
 class GutteringSystem {
  public:
   // Constructor for programmatic configuration
-  GutteringSystem(node_id_t num_nodes, int workers, const GutteringConfiguration &conf,
+  GutteringSystem(node_id_t num_nodes, int workers, GutteringConfiguration conf,
                   bool page_slots = false)
-      : page_size(conf._page_size),
+      : page_size((conf.set_defaults())._page_size),  // set defaults first to default init params
         buffer_size(conf._buffer_size),
         fanout(conf._fanout),
         num_flushers(conf._num_flushers),
@@ -52,6 +52,6 @@ class GutteringSystem {
   const size_t wq_batch_per_elm;  // number of batches each queue element holds
 
   const node_id_t num_nodes;
-  node_id_t leaf_gutter_size;
+  const node_id_t leaf_gutter_size;
   WorkQueue wq;
 };
