@@ -1,4 +1,7 @@
 #pragma once
+#include <unistd.h>
+#include <iostream>
+#include <string>
 
 // forward declaration
 class GutteringSystem;
@@ -6,47 +9,51 @@ class GutteringSystem;
 class GutteringConfiguration {
 private:
   // write granularity
-  uint32_t _page_size = 8192;
+  size_t _page_size = uninit_param;
   
   // size of an internal node buffer
-  uint32_t _buffer_size = 1 << 23;
+  size_t _buffer_size = uninit_param;
   
   // maximum number of children per node
-  uint32_t _fanout = 64;
+  size_t _fanout = uninit_param;
   
   // total number of batches in queue is this factor * num_workers
-  uint32_t _queue_factor = 8;
+  size_t _queue_factor = uninit_param;
   
   // the number of flush threads
-  uint32_t _num_flushers = 2;
+  size_t _num_flushers = uninit_param;
   
-  // factor which increases/decreases the leaf gutter size
-  float _gutter_factor = 1;
+  // the size of each leaf gutter in bytes
+  size_t _gutter_bytes = uninit_param;
   
   // number of batches placed into or removed from the queue in one push or peek operation
-  size_t _wq_batch_per_elm = 1;
+  size_t _wq_batch_per_elm = uninit_param;
 
   friend class GutteringSystem;
 
 public:
-  GutteringConfiguration();
+  GutteringConfiguration() = default;
+  GutteringConfiguration& set_defaults();
   
   // setters
-  GutteringConfiguration& page_factor(int page_factor);
-  
-  GutteringConfiguration& buffer_exp(int buffer_exp);
-  
-  GutteringConfiguration& fanout(uint32_t fanout);
-  
-  GutteringConfiguration& queue_factor(uint32_t queue_factor);
-  
-  GutteringConfiguration& num_flushers(uint32_t num_flushers);
-  
-  GutteringConfiguration& gutter_factor(float gutter_factor);
-  
+  GutteringConfiguration& page_factor(size_t page_factor);
+  GutteringConfiguration& buffer_exp(size_t buffer_exp);
+  GutteringConfiguration& fanout(size_t fanout);
+  GutteringConfiguration& queue_factor(size_t queue_factor);
+  GutteringConfiguration& num_flushers(size_t num_flushers);
+  GutteringConfiguration& gutter_bytes(size_t gutter_bytes);
   GutteringConfiguration& wq_batch_per_elm(size_t wq_batch_per_elm);
 
-  friend std::ostream& operator<<(std::ostream& out, const GutteringConfiguration& dt);
+  // getters
+  size_t get_page_size()        { return _page_size; }
+  size_t get_buffer_size()      { return _buffer_size; }
+  size_t get_fanout()           { return _fanout; }
+  size_t get_queue_factor()     { return _queue_factor; }
+  size_t get_num_flushers()     { return _num_flushers; }
+  size_t get_gutter_bytes()     { return _gutter_bytes; }
+  size_t get_wq_batch_per_elm() { return _wq_batch_per_elm; }
+
+  friend std::ostream& operator<<(std::ostream& out, GutteringConfiguration conf);
 
   // no use of equal operator
   GutteringConfiguration &operator=(const GutteringConfiguration &) = delete;
@@ -54,4 +61,6 @@ public:
   // moving and copying allowed
   GutteringConfiguration(const GutteringConfiguration &) = default;
   GutteringConfiguration (GutteringConfiguration &&) = default;
+
+  static constexpr size_t uninit_param = (size_t) -1;
 };

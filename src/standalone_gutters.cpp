@@ -6,9 +6,9 @@
 #include <omp.h>
 #endif
 
-StandAloneGutters::StandAloneGutters(node_id_t num_nodes, uint32_t workers, uint32_t inserters, 
- const GutteringConfiguration &conf) : GutteringSystem(num_nodes, workers, conf), gutters(num_nodes), 
- inserters(inserters) {
+StandAloneGutters::StandAloneGutters(node_id_t num_nodes, uint32_t workers, uint32_t inserters,
+                                     GutteringConfiguration conf)
+    : GutteringSystem(num_nodes, workers, conf), gutters(num_nodes), inserters(inserters) {
   for (node_id_t i = 0; i < num_nodes; ++i) {
     gutters[i].buffer.reserve(leaf_gutter_size);
   }

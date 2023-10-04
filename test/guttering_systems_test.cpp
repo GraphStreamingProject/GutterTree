@@ -181,7 +181,7 @@ TEST_P(GuttersTest, TinyGutters) {
   auto conf = GutteringConfiguration()
               .buffer_exp(16)
               .fanout(16)
-              .gutter_factor(-1 * GutteringSystem::upds_per_sketch(nodes))
+              .gutter_bytes(sizeof(node_id_t))
               .queue_factor(1);
 
   run_test(nodes, num_updates, data_workers, GetParam(), conf);
@@ -193,9 +193,8 @@ TEST_P(GuttersTest, FlushAndInsertAgain) {
   const int num_flushes = 3;
   const int data_workers = 20;
 
-  // gutter factor to make buffers size 1
-  auto conf = GutteringConfiguration()
-              .gutter_factor(1);
+  // default configuration
+  auto conf = GutteringConfiguration();
 
   SystemEnum gts_enum = GetParam();
   GutteringSystem *gts;

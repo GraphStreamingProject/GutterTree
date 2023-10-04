@@ -12,12 +12,11 @@ WorkQueue::WorkQueue(size_t total_batches, size_t batch_size, size_t bpe) :
   // place all nodes of linked list in the producer queue and reserve
   // memory for the vectors
   for (size_t i = 0; i < len; i++) {
-    DataNode *node = new DataNode(batch_per_elm, max_batch_size); // create and reserve space for updates
+    // create and reserve space for updates
+    DataNode *node = new DataNode(batch_per_elm, max_batch_size);
     node->next = producer_list; // next of node is head
     producer_list = node; // set head to new node
   }
-
-  printf("WQ: created work queue with %lu elements, each of %lu batch(es), containing %lu updates\n", len, batch_per_elm, max_batch_size);
 }
 
 WorkQueue::~WorkQueue() {

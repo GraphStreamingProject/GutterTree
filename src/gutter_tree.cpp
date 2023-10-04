@@ -15,7 +15,7 @@
  * and the number of nodes we will insert(N)
  * We assume that node indices begin at 0 and increase to N-1
  */
-GutterTree::GutterTree(std::string dir, node_id_t nodes, int workers, const GutteringConfiguration &conf, 
+GutterTree::GutterTree(std::string dir, node_id_t nodes, int workers, GutteringConfiguration conf, 
  bool reset) 
 : GutteringSystem(nodes, workers, conf, true), dir(dir), num_nodes(nodes) {
   if (buffer_size < page_size) {
