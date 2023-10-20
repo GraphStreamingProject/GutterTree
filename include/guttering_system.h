@@ -21,7 +21,9 @@ class GutteringSystem {
         leaf_gutter_size(conf._gutter_bytes / sizeof(node_id_t)),
         wq(workers * queue_factor,
            page_slots ? leaf_gutter_size + page_size / sizeof(node_id_t) : leaf_gutter_size,
-           wq_batch_per_elm) {}
+           wq_batch_per_elm) {
+    std::cout << conf << std::endl;
+  }
   virtual ~GutteringSystem(){};
 
   // insert an element to the guttering system
