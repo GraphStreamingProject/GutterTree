@@ -40,9 +40,9 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
 
     level4_elms_per_buf = level4_fanout * block_size / sizeof(update_t);
 
-    std::cout << "Using level 4 buffer" << std::endl;
-    std::cout << "level 4 fanout    = " << level4_fanout << std::endl;
-    std::cout << "level 4 elems/buf = " << level4_elms_per_buf << std::endl;
+    std::cout << " Using level 4 buffer" << std::endl;
+    std::cout << " level 4 fanout    = " << level4_fanout << std::endl;
+    std::cout << " level 4 elems/buf = " << level4_elms_per_buf << std::endl;
 
     level4_gutters = new RAM_Gutter[max_level4_bufs];
     for (node_id_t i = 0; i < max_level4_bufs; ++i)
@@ -56,8 +56,7 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
 
   // initialize l3 flush locks
   level3_flush_locks = new std::mutex[level3_bufs];
-  
-  std::cout << "Total InsertThreads bytes: " << sizeof(InsertThread) * inserters << std::endl;
+
   // for debugging -- print out root to leaf paths for every id
   // for (node_id_t i = 0; i < num_nodes; i++)
   //  print_r_to_l(i);
