@@ -1,5 +1,6 @@
 #pragma once
 #include "guttering_system.h"
+#include "vertex_group.h"
 #include <array>
 #include <cassert>
 
@@ -26,7 +27,7 @@ class CacheGuttering : public GutteringSystem {
   // basic 'tree' params
   static constexpr size_t level1_fanout       = 16;
   static constexpr size_t level1_bufs         = 8; // number of root buffers. Must be power of 2
-  static constexpr size_t level1_elms_per_buf = level1_fanout * block_size / sizeof(update_t);
+  static constexpr size_t level1_elms_per_buf = level1_fanout * block_size / sizeof(update_t);  // one block per child
   static constexpr size_t level2_bufs         = level1_bufs * level1_fanout;
   static constexpr size_t level2_elms_per_buf = level1_elms_per_buf * buffer_growth_factor;
   static constexpr size_t level3_bufs         = level2_bufs * level1_fanout * buffer_growth_factor;
@@ -61,6 +62,7 @@ class CacheGuttering : public GutteringSystem {
     size_t max_elms = 3*num_slots / 4 + rand() % (num_slots/4);
   };
   struct WQ_Buffer {
+    // thing to update 
     std::vector<update_batch> batches;
     size_t size = 0;
   };
