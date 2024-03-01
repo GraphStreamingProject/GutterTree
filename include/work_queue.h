@@ -5,6 +5,7 @@
 #include <atomic>
 #include <vector>
 #include "types.h"
+#include <string>
 
 struct update_batch {
   node_id_t node_idx;

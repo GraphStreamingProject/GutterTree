@@ -1,7 +1,6 @@
 #include "../include/work_queue.h"
 #include "../include/types.h"
 
-#include <string.h>
 #include <chrono>
 #include <cassert>
 

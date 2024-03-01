@@ -3,10 +3,15 @@ include(FetchContent)
 
 project(GutterTree)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
+add_compile_options(-fsanitize=undefined)
+add_link_options(-fsanitize=undefined)
 
 # Make the default build type Release. If user or another
 # project sets a different value than use that
@@ -97,6 +102,7 @@ if (BUILD_EXE)
   add_executable(guttering_tests
     test/runner.cpp
     test/guttering_systems_test.cpp
+    test/vertex_group_tests.cpp
     # test/cache_gutter_tree_test.cpp
   )
   target_link_libraries(guttering_tests PRIVATE GutterTree)
