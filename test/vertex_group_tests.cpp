@@ -32,7 +32,7 @@ uint64_t get_rand(int a, int b)
 class VertexGroupTest : public testing::Test {};
 // INSTANTIATE_TEST_SUITE_P(VertexGroupTestSuite, VertexGroupTest);
 
-TEST(VertexGroupTest, PackedArrayStream) {
+TEST(VertexGroupTest, PackedArrayCorrectness) {
   // stream through the array and garauntee that all entries store the correct value
   auto seed = get_time_nano();
   set_seed(seed);
@@ -41,12 +41,10 @@ TEST(VertexGroupTest, PackedArrayStream) {
   constexpr size_t bits_per_entry = 4;
 
   PackedIntArray<bits_per_entry, num_elems> packed_array;
-  std::array<uint64_t, num_elems> true_values; 
+  std::array<uint64_t, num_elems> true_values;
   
   for (size_t i=0; i < num_elems; i++) {
     uint64_t rand_value = get_rand(0, 1 << bits_per_entry);
-
-    std::cout << "num: " << rand_value <<std::endl;
     true_values[i] = rand_value;
     packed_array.set(i, rand_value);
   }
@@ -54,7 +52,21 @@ TEST(VertexGroupTest, PackedArrayStream) {
   for (size_t i=0; i < num_elems; i++) {
     size_t predicted = packed_array[i];
     size_t actual = true_values[i];
-    std::cout << "ooga " << predicted << " booga " << actual << std::endl;
+    ASSERT_EQ(true_values[i], packed_array[i]);
+  }
+
+  // now scramble some elements and ensure that the updates still are fine.
+  constexpr size_t num_updates = 4000;
+
+  for (auto i=0; i < num_updates; i++) {
+    uint64_t rand_index = get_rand(0, num_elems);
+    uint64_t rand_value = get_rand(0, 1 << bits_per_entry);
+    true_values[rand_index] = rand_value;
+    packed_array.set(rand_index, rand_value);
+  }
+  for (size_t i=0; i < num_elems; i++) {
+    size_t predicted = packed_array[i];
+    size_t actual = true_values[i];
     ASSERT_EQ(true_values[i], packed_array[i]);
   }
 

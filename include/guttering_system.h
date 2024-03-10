@@ -18,9 +18,9 @@ class GutteringSystem {
         queue_factor(conf._queue_factor),
         wq_batch_per_elm(conf._wq_batch_per_elm),
         num_nodes(num_nodes),
-        leaf_gutter_size(conf._gutter_bytes / sizeof(node_id_t)),
+        group_gutter_size(conf._gutter_bytes / sizeof(node_id_t)),
         wq(workers * queue_factor,
-           page_slots ? leaf_gutter_size + page_size / sizeof(node_id_t) : leaf_gutter_size,
+           page_slots ? group_gutter_size + page_size / sizeof(node_id_t) : group_gutter_size,
            wq_batch_per_elm) {
     std::cout << conf << std::endl;
   }
@@ -38,7 +38,8 @@ class GutteringSystem {
   virtual flush_ret_t force_flush() = 0;
 
   // get the size of a work queue elmement in bytes
-  size_t gutter_size() { return leaf_gutter_size * sizeof(node_id_t); }
+  // size_t gutter_size() { return leaf_gutter_size * sizeof(node_id_t); }
+  size_t group_gutter_size() {return group_gutter_size * sizeof(node_id_t);};
 
   // get data out of the guttering system either one gutter at a time or in a batched fashion
   bool get_data(WorkQueue::DataNode *&data) { return wq.peek(data); }
@@ -54,6 +55,7 @@ class GutteringSystem {
   const size_t wq_batch_per_elm;  // number of batches each queue element holds
 
   const node_id_t num_nodes;
-  const node_id_t leaf_gutter_size;
+  // const node_id_t leaf_gutter_size;
+  const node_id_t group_gutter_size;
   WorkQueue wq;
 };

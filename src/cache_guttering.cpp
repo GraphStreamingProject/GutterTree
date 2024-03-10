@@ -50,12 +50,22 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
   }
 
   // initialize leaf gutters
-  leaf_gutters = new Leaf_Gutter[num_nodes];
-  for (node_id_t i = 0; i < num_nodes; ++i)
-    leaf_gutters[i].reserve(leaf_gutter_size);
+  // leaf_gutters = new Leaf_Gutter[num_nodes];
+  // group_gutters(5);
+  node_id_t num_groups = (num_nodes + (VertexGroupGutter::group_size-1)) / VertexGroupGutter::group_size;
+  std::vector<VertexGroupGutter> new_gutters(num_groups);
+  group_gutters = new_gutters;
+
+  for (node_id_t i = 0; i < num_groups; ++i) {
+    group_gutters[i].reset(i * VertexGroupGutter::group_size);
+  }
+    // group[i].reserve(leaf_gutter_size);
 
   // initialize l3 flush locks
   level3_flush_locks = new std::mutex[level3_bufs];
+
+  // initialize vertexgroup buffers
+
 
   // for debugging -- print out root to leaf paths for every id
   // for (node_id_t i = 0; i < num_nodes; i++)
@@ -63,7 +73,7 @@ CacheGuttering::CacheGuttering(node_id_t num_nodes, uint32_t workers, uint32_t i
 }
 
 CacheGuttering::~CacheGuttering() {
-  delete[] leaf_gutters;
+  // delete[] leaf_gutters;
   delete[] level4_gutters;
   delete[] level3_flush_locks;
 }
@@ -81,6 +91,8 @@ void CacheGuttering::InsertThread::insert(update_t upd) {
     // std::cout << "Flushing L1 gutter" << std::endl;
     flush_buf_l1(l1_idx);
   }
+  //flush the local workqueue buffer if it's needed.
+  // DOING IT HERE SO ITS POST-LOCKS
 }
 
 void CacheGuttering::InsertThread::flush_buf_l1(const node_id_t idx) {
@@ -126,12 +138,14 @@ void CacheGuttering::InsertThread::flush_buf_l3(const node_id_t idx) {
     // flush directly to leaves
     for (size_t i = 0; i < l3_gutter.num_elms; i++) {
       update_t upd = l3_gutter.data[i];
-      Leaf_Gutter &leaf = CGsystem.leaf_gutters[upd.first];
+      // Leaf_Gutter &leaf = CGsystem.leaf_gutters[upd.first];
+      std::unique_ptr<VertexGroupGutter> group = CGsystem.group_gutters[upd.first >> VertexGroupGutter::num_bits];
       // std::cout << "L3 Handling update " << upd.first << ", " << upd.second << std::endl;
-      leaf.push_back(upd.second);
-      if (leaf.size() >= CGsystem.leaf_gutter_size) {
-        assert(leaf.size() == CGsystem.leaf_gutter_size);
-        wq_push_helper(upd.first, leaf);
+      // leaf.push_back(upd.second);
+      group->put(upd);
+      if (group->size() >= CGsystem.group_gutter_size) {
+        assert(group->size() == CGsystem.group_gutter_size);
+        // wq_push_helper(upd.first, group);
       }
     }
   } else {
@@ -156,39 +170,45 @@ void CacheGuttering::InsertThread::flush_buf_l3(const node_id_t idx) {
 void CacheGuttering::InsertThread::flush_buf_l4(const node_id_t idx) {
   RAM_Gutter &gutter = CGsystem.level4_gutters[idx];
   for (update_t upd : gutter) {
-    Leaf_Gutter &leaf = CGsystem.leaf_gutters[upd.first];
-    leaf.push_back(upd.second);
-    if (leaf.size() >= CGsystem.leaf_gutter_size) {
-      assert(leaf.size() == CGsystem.leaf_gutter_size);
-      wq_push_helper(upd.first, leaf);
+    std::unique_ptr<VertexGroupGutter> group = CGsystem.group_gutters[upd.first >> VertexGroupGutter::num_bits];
+    // leaf.push_back(upd.second);
+    group->put(upd);
+    if (group->size() >= CGsystem.group_gutter_size) {
+      assert(group->size() == CGsystem.group_gutter_size);
+      wq_push_helper(group);
     }
   }
   gutter.clear();
 }
 
-void CacheGuttering::InsertThread::wq_push_helper(node_id_t node_idx, Leaf_Gutter &leaf) {
-  local_wq_buffer.batches[local_wq_buffer.size].node_idx = node_idx + CGsystem.relabelling_offset;
-  std::swap(local_wq_buffer.batches[local_wq_buffer.size].upd_vec, leaf);
-  ++local_wq_buffer.size;
-  if (local_wq_buffer.size >= CGsystem.wq_batch_per_elm)
-    flush_wq_buf();
-  leaf.clear();
+void CacheGuttering::InsertThread::wq_push_helper(std::unique_ptr<VertexGroupGutter> group_gutter) {
+  // swap 
+  std::swap(group_gutter, local_vg_buffer.buffer);
+
+
+  // swap the local buffer and the leaf's buffer
+  // local_wq_buffer.batches[local_wq_buffer.size].node_idx = node_idx + CGsystem.relabelling_offset;
+  // std::swap(local_wq_buffer.batches[local_wq_buffer.size].upd_vec, leaf);
+  // ++local_wq_buffer.size;
+  // if (local_wq_buffer.size >= CGsystem.wq_batch_per_elm)
+  //   flush_wq_buf();
+  // leaf.clear();
 }
 
 void CacheGuttering::InsertThread::flush_wq_buf() {
   // if nothing to flush then don't
-  if (local_wq_buffer.size == 0) return;
+  if (local_vg_buffer.size == 0) return;
 
-  // if wq buffer size is less than expected
-  if (local_wq_buffer.size < CGsystem.wq_batch_per_elm) {
-    // clear the batches beyond wq buffer size
-    for (size_t i = local_wq_buffer.size; i < CGsystem.wq_batch_per_elm; i++)
-      local_wq_buffer.batches[i].upd_vec.clear();
-  }
+  // // if wq buffer size is less than expected
+  // if (local_wq_buffer.size < CGsystem.wq_batch_per_elm) {
+  //   // clear the batches beyond wq buffer size
+  //   for (size_t i = local_wq_buffer.size; i < CGsystem.wq_batch_per_elm; i++)
+  //     local_wq_buffer.batches[i].upd_vec.clear();
+  // }
 
-  // perform the flush
-  CGsystem.wq.push(local_wq_buffer.batches);
-  local_wq_buffer.size = 0;
+  // // perform the flush
+  // CGsystem.wq.push(TODO);
+  // local_wq_buffer.size = 0;
 }
 
 void CacheGuttering::InsertThread::flush_all() {

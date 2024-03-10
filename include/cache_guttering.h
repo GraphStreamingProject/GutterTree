@@ -13,6 +13,11 @@ constexpr int log2_constexpr(size_t num) {
   return power;
 }
 
+struct Local_VGB {
+  std::vector<std::unique_ptr<VertexGroupGutter>> buffers;
+  size_t size;
+};
+
 class CacheGuttering : public GutteringSystem {
  private:
   size_t inserters;
@@ -54,17 +59,12 @@ class CacheGuttering : public GutteringSystem {
   node_id_t relabelling_offset = 0;
 
   using RAM_Gutter  = std::vector<update_t>;
-  using Leaf_Gutter = std::vector<node_id_t>;
+  // using Leaf_Gutter = std::vector<node_id_t>;
   template <size_t num_slots>
   struct Cache_Gutter {
     std::array<update_t, num_slots> data;
     size_t num_elms = 0;
     size_t max_elms = 3*num_slots / 4 + rand() % (num_slots/4);
-  };
-  struct WQ_Buffer {
-    // thing to update 
-    std::vector<update_batch> batches;
-    size_t size = 0;
   };
 
   class InsertThread {
@@ -76,11 +76,12 @@ class CacheGuttering : public GutteringSystem {
     std::array<Cache_Gutter<level2_elms_per_buf>, level2_bufs> level2_gutters;
     std::array<Cache_Gutter<level3_elms_per_buf>, level3_bufs> level3_gutters;
 
+    // thread local scratch space for serializing vertex groups
+
    public:
     InsertThread(CacheGuttering &CGsystem) : CGsystem(CGsystem) {
-      local_wq_buffer.batches.resize(CGsystem.wq_batch_per_elm);
-      for (auto &batch : local_wq_buffer.batches)
-        batch.upd_vec.reserve(CGsystem.leaf_gutter_size);
+      local_vg_buffer.buffers.resize(CGsystem.wq_batch_per_elm);
+      local_vg_buffer.size = 0;
     };
 
     // insert an update into the local buffers
@@ -92,11 +93,13 @@ class CacheGuttering : public GutteringSystem {
     void flush_buf_l3(const node_id_t idx);
     void flush_buf_l4(const node_id_t idx);
     void flush_all(); // flush entire structure
-    void wq_push_helper(node_id_t node_idx, Leaf_Gutter &leaf);
+    void wq_push_helper(std::unique_ptr<VertexGroupGutter> leaf);
     void flush_wq_buf();
 
     // Buffer for performing batch push to work queue
-    WQ_Buffer local_wq_buffer;
+    // WQ_Buffer local_wq_buffer;
+    Local_VGB local_vg_buffer;
+
 
     // no copying for you
     InsertThread(const InsertThread &) = delete;
@@ -111,7 +114,7 @@ class CacheGuttering : public GutteringSystem {
 
   // buffers shared amongst all threads
   RAM_Gutter *level4_gutters = nullptr; // additional RAM layer if necessary
-  Leaf_Gutter *leaf_gutters;          // final layer that holds node gutters
+  std::vector<std::unique_ptr<VertexGroupGutter>> group_gutters;          // final layer that holds node gutters
 
   friend class InsertThread;
 
