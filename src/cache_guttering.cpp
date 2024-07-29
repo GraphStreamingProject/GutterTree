@@ -277,14 +277,26 @@ void CacheGuttering::SharedGutter::flush(InsertThread &thr, SharedGutter *&gut_p
   }
 
   // apply all pending updates to children
-  size_t child_idx = index * CGsystem.fanouts[level - 1]; // first child idx
-  for (auto &buf : thr.l4_insert_bufs) {
-    if (buf.size() > 0) {
-      while (!CGsystem.level4_gutters[child_idx]->batch_insert(
-            thr, CGsystem.level4_gutters[child_idx], buf)) {}
-      buf.clear();
+  if (level == 3 && CGsystem.level4_gutters != nullptr) {
+    size_t child_idx = index * CGsystem.fanouts[level - 1]; // first child idx
+    for (auto &buf : thr.l4_insert_bufs) {
+      if (buf.size() > 0) {
+        while (!CGsystem.level4_gutters[child_idx]->batch_insert(
+              thr, CGsystem.level4_gutters[child_idx], buf)) {}
+        buf.clear();
+      }
+      child_idx++;
     }
-    child_idx++;
+  } else {
+    size_t child_idx = index * CGsystem.fanouts[level - 1];
+    for (auto &buf : thr.leaf_insert_bufs) {
+      if (buf.size() > 0) {
+        while (!CGsystem.leaf_gutters[child_idx]->batch_insert(
+              thr, CGsystem.leaf_gutters[child_idx], buf)) {}
+        buf.clear();
+      }
+      child_idx++;
+    }
   }
 }
 
@@ -354,6 +366,12 @@ void CacheGuttering::LeafGutter::flush(InsertThread &thr, LeafGutter *&gut_ptr, 
 void CacheGuttering::InsertThread::wq_push_helper(node_id_t node_idx, LeafGutter &leaf) {
   // std::cerr << "Placing LeafGutter " << leaf.index << " (" << leaf.insert_pos << ", " << leaf.capacity << ")" << std::endl;
 
+  if (leaf.insert_pos > leaf.capacity) {
+    std::cerr << "ERROR: LeafGutter is too big!" << std::endl;
+    std::cerr << "Placing LeafGutter " << leaf.index << " (" << leaf.insert_pos << ", " << leaf.capacity << ")" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
   local_wq_buffer.batches[local_wq_buffer.size].node_idx = node_idx + CGsystem.relabelling_offset;
   local_wq_buffer.batches[local_wq_buffer.size].upd_vec.assign(leaf.data,
                                                                leaf.data + leaf.insert_pos);
@@ -405,7 +423,8 @@ void CacheGuttering::force_flush() {
   // flush level3 gutters if necessary
   if (level3_gutters != nullptr) {
     auto lower_flush_task = [&](const size_t thr, const size_t min, const size_t max) {
-      for (size_t i = 0; i < num_level3_bufs; i++) {
+      // std::cerr << "Flush task " << thr << ": " << min << ", " << max << std::endl;
+      for (size_t i = min; i < max; i++) {
         level3_gutters[i]->flush(insert_threads[thr], level3_gutters[i],
                                  level3_gutters[i]->insert_pos, std::vector<update_t>());
       }
@@ -420,11 +439,11 @@ void CacheGuttering::force_flush() {
     };
 
     size_t min = 0;
-    size_t max = num_level3_bufs / inserters;
+    size_t max = (double(1) / inserters) * num_level3_bufs;
     for (size_t i = 0; i < inserters; i++) {
       threads[i] = std::thread(lower_flush_task, i, min, max);
       min = max;
-      max = (num_level3_bufs - max) / (i + 1);
+      max = (double(i + 2) / inserters) * num_level3_bufs;
     }
 
     for (size_t i = 0; i < inserters; i++)

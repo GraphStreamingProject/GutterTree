@@ -420,6 +420,16 @@ TEST(CacheGutteringTest, ParallelInserts) {
   run_test(nodes, num_updates, data_workers, CACHETREE, conf, nthreads);
 }
 
+TEST(CacheGutteringTest, ManyVertices) {
+  const size_t vertices     = 1 << 20;
+  const size_t num_updates  = 10000000;
+  const size_t data_workers = 4;
+  const size_t nthreads     = 10;
+
+  GutteringConfiguration conf;
+  run_test(vertices, num_updates, data_workers, CACHETREE, conf, nthreads);
+}
+
 TEST(CacheGutteringTest, RelabellingOffset) {
   const int nodes = 1024;
   const int relabelling_offset = 1024;

@@ -176,6 +176,10 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
   delete gutters;
 }
 
+TEST(CG_Throughput, kron15_1thread) {
+  run_test(32768, 280025434, 1);
+  ASSERT_EQ(num_updates_processed, 280025434 * 2);
+}
 TEST(CG_Throughput, kron15_10threads) {
   run_test(32768, 280025434, 10);
   ASSERT_EQ(num_updates_processed, 280025434 * 2);
@@ -185,6 +189,10 @@ TEST(CG_Throughput, kron15_20threads) {
   ASSERT_EQ(num_updates_processed, 280025434 * 2);
 }
 
+TEST(CG_Throughput, kron17_1thread) {
+  run_test(131072, 4474931789, 10);
+  ASSERT_EQ(num_updates_processed, 4474931789 * 2);
+}
 TEST(CG_Throughput, kron17_10threads) {
   run_test(131072, 4474931789, 10);
   ASSERT_EQ(num_updates_processed, 4474931789 * 2);

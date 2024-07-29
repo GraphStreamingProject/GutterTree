@@ -62,9 +62,9 @@ class CacheGuttering : public GutteringSystem {
   const size_t num_shared_levels = 0;
 
   // fanouts: L1->L2, L2->L3, L3->L4, L4->L5 (if not all 5 levels present then 0s)
-  const size_t fanouts[4] = {1 << (level1_pos - level2_pos), 1 << (level3_pos - level2_pos),
-                             num_level3_bufs / level2_bufs,
-                             num_level3_bufs == 0 ? 0 : num_level4_bufs / num_level3_bufs};
+  const size_t fanouts[4] = {1 << (level1_pos - level2_pos), 1 << (level2_pos - level3_pos),
+                             1 << (level3_pos - level4_pos),
+                             1 << (level4_pos - (int) ceil(log2(num_nodes)))};
 
   // offset for insertion re-labelling
   node_id_t relabelling_offset = 0;
