@@ -188,7 +188,7 @@ void CacheGuttering::InsertThread::flush_l2_buf(node_id_t buf_idx) {
 bool CacheGuttering::SharedGutter::batch_insert(InsertThread &thr, SharedGutter *&gut_ptr,
                                           const std::vector<update_t> &updates) {
   // std::cerr << "SharedGutter " << index << " batch_insert(" << updates.size() << ") " << std::endl;
-
+  active_inserts++;
   size_t pos = insert_pos.fetch_add(updates.size());
   
   if (pos >= capacity) {
@@ -303,6 +303,7 @@ void CacheGuttering::SharedGutter::flush(InsertThread &thr, SharedGutter *&gut_p
 bool CacheGuttering::LeafGutter::batch_insert(InsertThread &thr, LeafGutter *&gut_ptr,
                                               const std::vector<node_id_t> &updates) {
   // std::cerr << "LeafGutter " << index << " batch_insert(" << updates.size() << ") " << std::endl;
+  active_inserts++;
   size_t pos = insert_pos.fetch_add(updates.size());
   
   if (pos >= capacity) {

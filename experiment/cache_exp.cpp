@@ -190,7 +190,7 @@ TEST(CG_Throughput, kron15_20threads) {
 }
 
 TEST(CG_Throughput, kron17_1thread) {
-  run_test(131072, 4474931789, 10);
+  run_test(131072, 4474931789, 1);
   ASSERT_EQ(num_updates_processed, 4474931789 * 2);
 }
 TEST(CG_Throughput, kron17_10threads) {
