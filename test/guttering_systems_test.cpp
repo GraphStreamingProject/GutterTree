@@ -4,6 +4,8 @@
 #include <atomic>
 #include <fstream>
 #include <math.h>
+#include <iostream>
+
 #include "standalone_gutters.h"
 #include "gutter_tree.h"
 #include "cache_guttering.h"
@@ -108,7 +110,7 @@ static void run_test(const int nodes, const int num_updates, const int data_work
     threads[j].join();
 
 
-  printf("force flush\n");
+  std::cerr << "force flush" << std::endl;
   gts->force_flush();
   shutdown = true;
   gts->set_non_block(true); // switch to non-blocking calls in an effort to exit
