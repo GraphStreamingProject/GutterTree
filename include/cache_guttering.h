@@ -18,10 +18,10 @@ class CacheGuttering : public GutteringSystem {
   node_id_t num_nodes;
 
   static constexpr size_t cache_line      = 64;                             // bytes in cache_line
-  static constexpr size_t block_size      = 4 * cache_line;                 // 256
-  static constexpr size_t block_elms      = block_size / sizeof(update_t);  // 128 updates
-  static constexpr size_t block_leaf_elms = block_size / sizeof(node_id_t); // 256 updates
-  static constexpr double buffer_growth_factor = 1.5;
+  static constexpr size_t block_size      = 4 * cache_line;                 // 256 bytes
+  static constexpr size_t block_elms      = 2 * block_size / sizeof(update_t);  // 32 updates
+  static constexpr size_t block_leaf_elms = 2 * block_size / sizeof(node_id_t); // 64 updates
+  static constexpr double buffer_growth_factor = 2;
 
   // params for thread local levels
   static constexpr size_t local_fanout     = 64;
@@ -62,9 +62,16 @@ class CacheGuttering : public GutteringSystem {
   const size_t num_shared_levels = 0;
 
   // fanouts: L1->L2, L2->L3, L3->L4, L4->L5 (if not all 5 levels present then 0s)
-  const size_t fanouts[4] = {1 << (level1_pos - level2_pos), 1 << (level2_pos - level3_pos),
-                             1 << (level3_pos - level4_pos),
-                             1 << (level4_pos - (int) ceil(log2(num_nodes)))};
+  const size_t fanout_bits[4] = {(size_t) level1_pos - level2_pos,
+                                 (size_t) level2_pos - level3_pos,
+                                 (size_t) level3_pos - level4_pos,
+                                 (size_t) level4_pos - (int)ceil(log2(num_nodes))};
+
+  // for identifying which child we're referencing
+  const size_t fanout_masks[4] = {~(size_t(-1) << fanout_bits[0]),
+                                  ~(size_t(-1) << fanout_bits[1]),
+                                  ~(size_t(-1) << fanout_bits[2]),
+                                  ~(size_t(-1) << fanout_bits[3])};
 
   // offset for insertion re-labelling
   node_id_t relabelling_offset = 0;
@@ -197,8 +204,12 @@ class CacheGuttering : public GutteringSystem {
     void flush_l2_buf(const node_id_t buf_idx);
 
     void flush_all(); // flush entire structure
-    void wq_push_helper(node_id_t node_idx, LeafGutter &leaf);
+    void wq_push_helper(node_id_t node_idx, LeafGutter &leaf, size_t exp_size);
     void flush_wq_buf();
+
+    void batch_shared_insert(SharedGutter **gutters, const size_t buf_idx,
+                             std::vector<update_t> &updates);
+    void batch_leaf_insert(const size_t buf_idx, std::vector<node_id_t> &updates);
 
     // Buffer for performing batch push to work queue
     WQ_Buffer local_wq_buffer;
@@ -222,8 +233,6 @@ class CacheGuttering : public GutteringSystem {
 
   std::vector<InsertThread> insert_threads; // vector of InsertThreads
  public:
-  using InsertThread = CacheGuttering::InsertThread;
-
   /**
    * Constructs a new guttering systems using a tree like structure for cache efficiency.
    * @param nodes       number of nodes in the graph.
