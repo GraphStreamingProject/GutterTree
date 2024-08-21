@@ -4,6 +4,7 @@
 #include <utility>
 #include <atomic>
 #include <vector>
+#include <string>
 #include "types.h"
 
 struct update_batch {
