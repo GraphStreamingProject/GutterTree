@@ -9,6 +9,15 @@
 #include <errno.h>
 #include <fstream>
 
+/**
+ * for (size_t i = 0; i < CGsystem.local_fanout; i++)
+ *   extra_level3_gutters[i] = new SharedGutter(CGsystem, level3_elms_per_buf, 3, 0);
+ * for (size_t i = 0; i < CGsystem.global_fanout; i++) {
+ *   extra_level4_gutters[i] = new SharedGutter(CGsystem, level4_elms_per_buf, 4, 0);
+ *   extra_leaves[i] = new LeafGutter(CGsystem, CGsystem.leaf_gutter_size, 0);
+ * }
+ */
+
 /*
  * Constructor
  * Sets up the gutter_tree given the storage directory, buffer size, number of children

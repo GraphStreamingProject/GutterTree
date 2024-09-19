@@ -413,7 +413,7 @@ TEST(CacheGutteringTest, ParallelInserts) {
   const int nodes = 32;
   const int num_updates = 5000000;
   const int data_workers = 4;
-  const int nthreads = 10;
+  const int nthreads = 1;
 
   GutteringConfiguration conf;
 

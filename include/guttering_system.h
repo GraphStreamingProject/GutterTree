@@ -34,6 +34,14 @@ class GutteringSystem {
     (void)(thr);
   }
 
+  // optionally define a function that applies many updates at once
+  // otherwise, just calls insert repeatedly
+  virtual insert_ret_t batch_insert(const update_t *batch, size_t num_updates, size_t thr) {
+    for (size_t i = 0; i < num_updates; i++) {
+      insert(batch[i], thr);
+    }
+  }
+
   // force all data out of buffers
   virtual flush_ret_t force_flush() = 0;
 
