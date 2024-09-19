@@ -91,70 +91,50 @@ class CacheGuttering : public GutteringSystem {
   node_id_t relabelling_offset = 0;
 
   template<size_t size>
-  struct alignas(32) LocalGutter {
-    alignas(32) std::array<node_id_t, size> srcs;
-    alignas(32) std::array<node_id_t, size> dsts;
+  struct LocalGutter {
+    std::array<update_t, size> data;
     size_t num_elms = 0;
     const size_t capacity = size;
   };
 
   // forward declarations
   class InsertThread;
-  class SharedGutter;
-  class LeafGutter;
-
-  struct SharedWritePos {
-    SharedGutter *gutter = nullptr;
-
-    // updates go in this half open range
-    size_t cur_idx = 0;
-    size_t last_pos = 0;
-  };
-
-  struct LeafWritePos {
-    LeafGutter *gutter = nullptr;
-
-    // updates go in this half open range
-    size_t cur_idx = 0;
-    size_t last_pos = 0;
-  };
 
   class SharedGutter {
    private:
     CacheGuttering &CGsystem;
    public:
-    node_id_t *srcs;
-    node_id_t *dsts;
+    update_t *data;
     std::atomic<size_t> insert_pos;
     std::atomic<int> active_inserts;
     node_id_t index;
     const size_t capacity;
     const size_t level;
 
+    // true init
     SharedGutter(CacheGuttering &CGsystem, size_t size, size_t level, size_t index)
         : CGsystem(CGsystem),
-          srcs(new node_id_t[size]),
-          dsts(new node_id_t[size]),
+          data(new update_t[size]),
           insert_pos(0),
           active_inserts(0),
           index(index),
           capacity(size),
           level(level) {}
     ~SharedGutter() {
-      delete[] srcs;
-      delete[] dsts;
+      delete[] data;
     }
 
-    SharedWritePos reserve_positions(SharedGutter **gutters, size_t num_updates);
-    void flush(InsertThread &thr);
-    void flush_if_can(InsertThread &thr);
+    bool batch_insert(CacheGuttering::InsertThread &thr, SharedGutter *&gut_ptr,
+                      const std::vector<update_t> &updates);
+    void flush(InsertThread &thr, SharedGutter *&gut_ptr, size_t num_upd_flush,
+               const std::vector<update_t> &updates);
   };
 
   class LeafGutter {
    private:
     CacheGuttering &CGsystem;
    public:
-    std::vector<node_id_t> data;
+    node_id_t *data;
     std::atomic<size_t> insert_pos;
     std::atomic<int> active_inserts;
     node_id_t index;
@@ -162,15 +142,19 @@ class CacheGuttering : public GutteringSystem {
 
     LeafGutter(CacheGuttering &CGsystem, size_t size, size_t index)
         : CGsystem(CGsystem),
-          data(size),
+          data(new node_id_t[size]),
           insert_pos(0),
           active_inserts(0),
           index(index),
           capacity(size) {}
+    ~LeafGutter() {
+      delete[] data;
+    }
 
-    LeafWritePos reserve_positions(size_t num_updates);
-    void flush(InsertThread &thr);
-    void flush_if_can(InsertThread &thr);
+    bool batch_insert(CacheGuttering::InsertThread &thr, LeafGutter *&gut_ptr,
+                      const std::vector<node_id_t> &updates);
+    void flush(InsertThread &thr, LeafGutter *&gut_ptr, size_t num_upd_flush,
+               const std::vector<node_id_t> &updates);
   };
 
   struct WQ_Buffer {
@@ -186,37 +170,65 @@ class CacheGuttering : public GutteringSystem {
 
     // thread local gutters
     update_t root_buffer[root_buffer_capacity];
-    alignas(32) std::array<LocalGutter<level1_elms_per_buf>, level1_bufs> level1_gutters;
-    alignas(32) std::array<LocalGutter<level2_elms_per_buf>, level2_bufs> level2_gutters;
+    std::array<LocalGutter<level1_elms_per_buf>, level1_bufs> level1_gutters;
+    std::array<LocalGutter<level2_elms_per_buf>, level2_bufs> level2_gutters;
 
    public:
-    InsertThread(CacheGuttering &CGsystem) : CGsystem(CGsystem) {
+    InsertThread(CacheGuttering &CGsystem)
+        : CGsystem(CGsystem),
+          l3_insert_bufs(local_fanout),
+          l4_insert_bufs(global_fanout),
+          leaf_insert_bufs(global_fanout) {
       local_wq_buffer.batches.resize(CGsystem.wq_batch_per_elm);
       for (auto &batch : local_wq_buffer.batches)
         batch.upd_vec.reserve(CGsystem.leaf_gutter_size);
+
+      for (auto &buf : l3_insert_bufs)
+        buf.reserve(block_elms);
+      for (auto &buf : l4_insert_bufs)
+        buf.reserve(block_elms);
+      for (auto &buf : leaf_insert_bufs)
+        buf.reserve(block_leaf_elms);
+
+      extra_level3_gutter = new SharedGutter(CGsystem, level3_elms_per_buf, 3, 0);
+      extra_level4_gutter = new SharedGutter(CGsystem, level4_elms_per_buf, 4, 0);
+      extra_leaf = new LeafGutter(CGsystem, CGsystem.leaf_gutter_size, 0);
     };
 
+    ~InsertThread() {
+      delete extra_level3_gutter;
+      delete extra_level4_gutter;
+      delete extra_leaf;
+    }
+
     // Extra memory for quick flushes
+    SharedGutter *extra_level3_gutter;
+    SharedGutter *extra_level4_gutter;
+    LeafGutter *extra_leaf;
+
+    SharedGutter **extra_bufs[2] = {&extra_level3_gutter, &extra_level4_gutter};
+
+    // buffers to avoid atomic on every update for shared levels
+    std::vector<std::vector<update_t>> l3_insert_bufs;
+    std::vector<std::vector<update_t>> l4_insert_bufs;
+    std::vector<std::vector<node_id_t>> leaf_insert_bufs;
 
     // insert an update into the local buffers
     void insert(update_t upd);
 
-    // insert a batch of updates into the local buffers
-    void batch_insert(const update_t *batch, size_t num_updates);
+    void batch_insert(const update_t *upds, size_t num_updates);
 
     // flush a local buffer
     void flush_l1_buf(const node_id_t buf_idx);
     void flush_l2_buf(const node_id_t buf_idx);
 
-    // Helper functions for placing updates into gutters
-    void place_upds_in_gutters(const node_id_t *srcs, const node_id_t *dsts,
-                               size_t parent_index, size_t num_updates, size_t update_level);
-    void place_upds_in_leaves(const node_id_t *srcs, const node_id_t *dsts,
-                              size_t parent_index, size_t num_updates, size_t update_level);
-
     void flush_all(); // flush entire structure
     void wq_push_helper(node_id_t node_idx, LeafGutter &leaf, size_t exp_size);
     void flush_wq_buf();
+
+    void batch_shared_insert(SharedGutter **gutters, const size_t buf_idx,
+                             std::vector<update_t> &updates);
+    void batch_leaf_insert(const size_t buf_idx, std::vector<node_id_t> &updates);
 
     // Buffer for performing batch push to work queue
     WQ_Buffer local_wq_buffer;
@@ -229,32 +241,12 @@ class CacheGuttering : public GutteringSystem {
     InsertThread (InsertThread &&) = default;
   };
 
-  SharedWritePos shared_reserve(SharedGutter **gutters, const size_t buf_idx, size_t num_updates);
-  LeafWritePos leaf_reserve(const size_t buf_idx, size_t num_updates);
-
   // buffers shared amongst all threads
-  SharedGutter **const level3_gutters = nullptr;
-  SharedGutter **const level4_gutters = nullptr;
+  SharedGutter **level3_gutters = nullptr;
+  SharedGutter **level4_gutters = nullptr;
 
   // final layer that holds node gutters
-  LeafGutter ** const leaf_gutters;
-
-  // When a buffer fills up the thread that fills it swaps it with one of these buffers
-  // this allows us to avoid waiting for the flush to complete before continuing work
-  // We maintain inserters * fanout buffers so that every thread can be flushing at the same
-  // time without it causing problems
-  SharedGutter **extra_level3_gutters;
-  SharedGutter **extra_level4_gutters;
-  LeafGutter **extra_leaves;
-
-  SharedGutter **extra_gutters[2] = {extra_level3_gutters, extra_level4_gutters};
-
-  // Offset into extra gutters. Offset increases by one % (inserters * fanout) 
-  std::atomic<size_t> l3_extra_buf_idx;
-  std::atomic<size_t> l4_extra_buf_idx;
-  std::atomic<size_t> leaf_extra_buf_idx;
-
-  std::atomic<size_t> *extra_gutters_idxs[2] = {&l3_extra_buf_idx, &l4_extra_buf_idx};
+  LeafGutter **leaf_gutters;
 
   friend class InsertThread;
 
