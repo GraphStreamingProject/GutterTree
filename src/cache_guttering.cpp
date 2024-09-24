@@ -419,9 +419,11 @@ void CacheGuttering::InsertThread::wq_push_helper(node_id_t node_idx, LeafGutter
     exit(EXIT_FAILURE);
   }
 
+  leaf.data.resize(leaf.insert_pos); // no realloc here because insert_pos <= capacity
   local_wq_buffer.batches[local_wq_buffer.size].node_idx = node_idx + CGsystem.relabelling_offset;
-  local_wq_buffer.batches[local_wq_buffer.size].upd_vec.assign(leaf.data,
-                                                               leaf.data + leaf.insert_pos);
+  std::swap(local_wq_buffer.batches[local_wq_buffer.size].upd_vec, leaf.data);
+  leaf.data.resize(leaf.capacity); // set size of leaf appropriately
+
   ++local_wq_buffer.size;
   if (local_wq_buffer.size >= CGsystem.wq_batch_per_elm)
     flush_wq_buf();

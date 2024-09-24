@@ -134,7 +134,7 @@ class CacheGuttering : public GutteringSystem {
    private:
     CacheGuttering &CGsystem;
    public:
-    node_id_t *data;
+    std::vector<node_id_t> data;
     std::atomic<size_t> insert_pos;
     std::atomic<int> active_inserts;
     node_id_t index;
@@ -142,14 +142,11 @@ class CacheGuttering : public GutteringSystem {
 
     LeafGutter(CacheGuttering &CGsystem, size_t size, size_t index)
         : CGsystem(CGsystem),
-          data(new node_id_t[size]),
+          data(size),
           insert_pos(0),
           active_inserts(0),
           index(index),
           capacity(size) {}
-    ~LeafGutter() {
-      delete[] data;
-    }
 
     bool batch_insert(CacheGuttering::InsertThread &thr, LeafGutter *&gut_ptr,
                       const std::vector<node_id_t> &updates);
