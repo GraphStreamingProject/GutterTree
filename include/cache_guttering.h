@@ -214,6 +214,7 @@ class CacheGuttering : public GutteringSystem {
     void insert(update_t upd);
 
     void batch_insert(const update_t *upds, size_t num_updates);
+    void process_stream_upd_batch(const GraphStreamUpdate *upds, size_t num_updates);
 
     // flush a local buffer
     void flush_l1_buf(const node_id_t buf_idx);
@@ -268,14 +269,20 @@ class CacheGuttering : public GutteringSystem {
    * @param which, which thread is inserting this update
    * @return nothing.
    */
-  insert_ret_t insert(const update_t &upd, size_t which) { 
+  insert_ret_t insert(const update_t &upd, size_t which) override { 
     assert(which < inserters);
     insert_threads[which].insert(upd);
   }
 
-  insert_ret_t batch_insert(const update_t *batch, size_t num_updates, size_t which) {
+  insert_ret_t batch_insert(const update_t *batch, size_t num_updates, size_t which) override {
     assert(which < inserters);
     insert_threads[which].batch_insert(batch, num_updates);
+  }
+
+  insert_ret_t process_stream_upd_batch(const GraphStreamUpdate *batch, size_t num_updates,
+                                        size_t which) override {
+    assert(which < inserters);
+    insert_threads[which].process_stream_upd_batch(batch, num_updates);
   }
 
   // pure virtual functions don't like default params, so default to 'which' of 0

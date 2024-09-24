@@ -124,6 +124,43 @@ void CacheGuttering::InsertThread::batch_insert(const update_t *batch, size_t nu
   }
 }
 
+void CacheGuttering::InsertThread::process_stream_upd_batch(const GraphStreamUpdate *upds,
+                                                            size_t num_updates) {
+  for (size_t i = 0; i < num_updates; i++) {
+    // do once for original <src, dst>
+    node_id_t src = upds[i].edge.src - CGsystem.relabelling_offset;
+    node_id_t dst = upds[i].edge.dst;
+    node_id_t l1_idx = extract_left_bits(src, CGsystem.level1_pos);
+    auto &gutter = level1_gutters[l1_idx];
+    gutter.data[gutter.num_elms++] = {src, dst};
+
+    if (gutter.num_elms >= gutter.capacity) {
+#ifdef EXIT_LEVEL1
+      gutter.num_elms = 0;
+#else
+      // std::cout << "Flushing L1 gutter" << std::endl;
+      flush_l1_buf(l1_idx);
+#endif
+    }
+
+    // do again for reversed <dst, src>
+    src = upds[i].edge.dst - CGsystem.relabelling_offset;
+    dst = upds[i].edge.src;
+    l1_idx = extract_left_bits(src, CGsystem.level1_pos);
+    auto &gutter2 = level1_gutters[l1_idx];
+    gutter2.data[gutter2.num_elms++] = {src, dst};
+
+    if (gutter2.num_elms >= gutter2.capacity) {
+#ifdef EXIT_LEVEL1
+      gutter2.num_elms = 0;
+#else
+      // std::cout << "Flushing L1 gutter" << std::endl;
+      flush_l1_buf(l1_idx);
+#endif
+    }
+  }
+}
+
 void CacheGuttering::InsertThread::flush_l1_buf(node_id_t buf_idx) {
   // std::cerr << "Flushing Level 1 buffer: " << buf_idx << std::endl;
   auto &gutter = level1_gutters[buf_idx];

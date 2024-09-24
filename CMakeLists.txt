@@ -58,7 +58,15 @@ FetchContent_Declare(
   GIT_TAG         main
 )
 
-FetchContent_MakeAvailable(googletest GraphZeppelinCommon)
+# Get StreamingUtilities
+FetchContent_Declare(
+  StreamingUtilities
+
+  GIT_REPOSITORY  https://github.com/GraphStreamingProject/StreamingUtilities.git
+  GIT_TAG         main
+)
+
+FetchContent_MakeAvailable(googletest GraphZeppelinCommon StreamingUtilities)
 
 add_library(GutterTree
   src/work_queue.cpp
@@ -77,8 +85,8 @@ add_library(GutterTree
   src/cache_guttering.cpp
   include/cache_guttering.h
   include/types.h)
-add_dependencies(GutterTree GraphZeppelinCommon)
-target_link_libraries(GutterTree PUBLIC gtest GraphZeppelinCommon)
+add_dependencies(GutterTree GraphZeppelinCommon StreamingUtilities)
+target_link_libraries(GutterTree PUBLIC gtest GraphZeppelinCommon StreamingUtilities)
 # different OSes have different ways of efficiently pre-allocating large files
 if (UNIX AND NOT APPLE)
   message(STATUS "Enabling Fallocate for a linux system")

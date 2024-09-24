@@ -5,6 +5,7 @@
 #include "guttering_configuration.h"
 #include "types.h"
 #include "work_queue.h"
+#include "stream_types.h"
 
 class GutteringSystem {
  public:
@@ -39,6 +40,17 @@ class GutteringSystem {
   virtual insert_ret_t batch_insert(const update_t *batch, size_t num_updates, size_t thr) {
     for (size_t i = 0; i < num_updates; i++) {
       insert(batch[i], thr);
+    }
+  }
+
+  // Specialized function for processing GraphStream objects
+  // optionally define a function that applies many GraphStreamUpdates
+  // otherwise, just calls insert repeatedly
+  virtual insert_ret_t process_stream_upd_batch(const GraphStreamUpdate *batch, size_t num_updates,
+                                         size_t thr) {
+    for (size_t i = 0; i < num_updates; i++) {
+      insert({batch[i].edge.src, batch[i].edge.dst}, thr);
+      insert({batch[i].edge.dst, batch[i].edge.src}, thr);
     }
   }
 
