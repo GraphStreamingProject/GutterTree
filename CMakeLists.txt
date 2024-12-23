@@ -12,6 +12,7 @@ add_compile_options(-fsanitize=address)
 add_link_options(-fsanitize=address)
 add_compile_options(-fsanitize=undefined)
 add_link_options(-fsanitize=undefined)
+add_compile_options(-save-temps)
 
 # Make the default build type Release. If user or another
 # project sets a different value than use that

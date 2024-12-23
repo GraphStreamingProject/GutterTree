@@ -135,11 +135,6 @@ class VertexGroupGutter {
     size_t _size = 0;
     std::array<node_id_t, buffer_size> dests;  // target nodes
     PackedIntArray<num_bits, buffer_size> sources;
-    // struct WQ_Buffer {
-    //   // TODO - make this global
-    //   std::vector<update_batch> batches;
-    //   size_t size = 0;
-    // };
 
   public:
     size_t size() {return _size;};

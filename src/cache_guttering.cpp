@@ -91,8 +91,6 @@ void CacheGuttering::InsertThread::insert(update_t upd) {
     // std::cout << "Flushing L1 gutter" << std::endl;
     flush_buf_l1(l1_idx);
   }
-  //flush the local workqueue buffer if it's needed.
-  // DOING IT HERE SO ITS POST-LOCKS
 }
 
 void CacheGuttering::InsertThread::flush_buf_l1(const node_id_t idx) {
@@ -146,6 +144,7 @@ void CacheGuttering::InsertThread::flush_buf_l3(const node_id_t idx) {
       if (group->size() >= CGsystem.group_gutter_size) {
         assert(group->size() == CGsystem.group_gutter_size);
         // wq_push_helper(upd.first, group);
+        wq_push_helper(group);
       }
     }
   } else {
@@ -183,8 +182,10 @@ void CacheGuttering::InsertThread::flush_buf_l4(const node_id_t idx) {
 
 void CacheGuttering::InsertThread::wq_push_helper(std::unique_ptr<VertexGroupGutter> group_gutter) {
   // swap 
-  std::swap(group_gutter, local_vg_buffer.buffer);
+  // std::swap(group_gutter, local_vg_buffer.buffer);
+  // there's not really a point to swapping here, since we need to write out the group into the work queue
 
+  
 
   // swap the local buffer and the leaf's buffer
   // local_wq_buffer.batches[local_wq_buffer.size].node_idx = node_idx + CGsystem.relabelling_offset;
@@ -241,15 +242,16 @@ void CacheGuttering::force_flush() {
     for (size_t i = 0; i < max_level4_bufs; i++)
       insert_threads[0].flush_buf_l4(i);
   }
+  // finally, flush vertex group leafs 
 
-  for (node_id_t i = 0; i < num_nodes; i++) {
-    if (leaf_gutters[i].size() > 0) {
-      // std::cout << "flushing leaf gutter " << i << " with " << leaf_gutters[i].size() << " updates" << std::endl;
-      assert(leaf_gutters[i].size() <= leaf_gutter_size);
-      insert_threads[0].wq_push_helper(i, leaf_gutters[i]);
-      leaf_gutters[i].clear();
-    }
-  }
+  // for (node_id_t i = 0; i < num_nodes; i++) {
+  //   if (leaf_gutters[i].size() > 0) {
+  //     // std::cout << "flushing leaf gutter " << i << " with " << leaf_gutters[i].size() << " updates" << std::endl;
+  //     assert(leaf_gutters[i].size() <= leaf_gutter_size);
+  //     insert_threads[0].wq_push_helper(i, leaf_gutters[i]);
+  //     leaf_gutters[i].clear();
+  //   }
+  // }
 
   // flush the local work queue buffer for each InsertThread
   for (size_t i = 0; i < inserters; i++)
