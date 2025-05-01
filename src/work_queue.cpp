@@ -1,9 +1,10 @@
 #include "../include/work_queue.h"
 #include "../include/types.h"
 
-#include <string.h>
+#include <string>
 #include <chrono>
 #include <cassert>
+#include <cstdio>
 
 WorkQueue::WorkQueue(size_t total_batches, size_t batch_size, size_t bpe) : 
  len(total_batches / bpe + total_batches % bpe), max_batch_size(batch_size), batch_per_elm(bpe) {
