@@ -1,9 +1,11 @@
 #pragma once
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <string>
 #include <utility>
-#include <atomic>
 #include <vector>
+
 #include "types.h"
 
 struct update_batch {
