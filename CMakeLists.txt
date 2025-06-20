@@ -69,7 +69,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest GraphZeppelinCommon StreamingUtilities)
 
 add_library(GutterTree
-  src/work_queue.cpp
   include/work_queue.h
   include/guttering_system.h
   src/guttering_configuration.cpp
@@ -84,6 +83,8 @@ add_library(GutterTree
   include/standalone_gutters.h
   src/cache_guttering.cpp
   include/cache_guttering.h
+  src/numa_pht.cpp
+  include/numa_pht.h
   include/types.h)
 add_dependencies(GutterTree GraphZeppelinCommon StreamingUtilities)
 target_link_libraries(GutterTree PUBLIC gtest GraphZeppelinCommon StreamingUtilities)

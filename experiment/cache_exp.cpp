@@ -16,7 +16,7 @@ static std::atomic<size_t> num_updates_processed;
 // queries the guttering system
 // Should be run in a seperate thread
 static void querier(GutteringSystem *gts) {
-  WorkQueue::DataNode *data;
+  WorkQueue<update_batch>::DataNode *data;
   while(true) {
     bool valid = gts->get_data(data);
     if (valid) {

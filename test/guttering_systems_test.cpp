@@ -27,7 +27,7 @@ enum SystemEnum {
 // returned makes sense
 // Should be run in a seperate thread
 static void querier(GutteringSystem *gts, int nodes) {
-  WorkQueue::DataNode *data;
+  WorkQueue<update_batch>::DataNode *data;
   while(true) {
     bool valid = gts->get_data(data);
     if (valid) {
@@ -471,7 +471,7 @@ TEST(CacheGutteringTest, RelabellingOffset) {
     }
   };
   auto query_task = [&](const int j) {
-    WorkQueue::DataNode *data;
+    WorkQueue<update_batch>::DataNode *data;
     while(true) {
       bool valid = gts->get_data(data);
       if (valid) {
