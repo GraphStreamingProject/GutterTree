@@ -11,7 +11,7 @@ static constexpr uint32_t prime = 100000007;
 // queries the guttering system
 // Should be run in a seperate thread
 void querier(GutteringSystem *gts) {
-  WorkQueue<update_batch>::DataNode *data;
+  VertexBatchQueue::DataNode *data;
   while(true) {
     bool valid = gts->get_data(data);
     if(!valid && shutdown)

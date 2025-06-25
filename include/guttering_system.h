@@ -12,10 +12,12 @@ struct update_batch {
   std::vector<node_id_t> upd_vec;
 };
 
+typedef WorkQueue<std::vector<update_batch>> VertexBatchQueue;
+
 class GutteringSystem {
  public:
   // Constructor for programmatic configuration
-  GutteringSystem(node_id_t num_nodes, int workers, GutteringConfiguration conf,
+  GutteringSystem(node_id_t num_nodes, int workers, GutteringConfiguration &conf,
                   bool page_slots = false)
       : page_size((conf.set_defaults())._page_size),  // set defaults first to default init params
         buffer_size(conf._buffer_size),
@@ -25,7 +27,7 @@ class GutteringSystem {
         wq_batch_per_elm(conf._wq_batch_per_elm),
         num_nodes(num_nodes),
         leaf_gutter_size(conf._gutter_bytes / sizeof(node_id_t)),
-        wq(workers * queue_factor, wq_batch_per_elm) {
+        wq(workers * queue_factor) {
     size_t batch_len =
         page_slots ? leaf_gutter_size + page_size / sizeof(node_id_t) : leaf_gutter_size;
     std::vector<std::vector<update_batch>> wq_data;
@@ -75,8 +77,12 @@ class GutteringSystem {
   size_t gutter_size() { return leaf_gutter_size * sizeof(node_id_t); }
 
   // get data out of the guttering system either one gutter at a time or in a batched fashion
-  bool get_data(WorkQueue<update_batch>::DataNode *&data) { return wq.pop(data); }
-  void get_data_callback(WorkQueue<update_batch>::DataNode *data) { wq.pop_callback(data); }
+  bool get_data(VertexBatchQueue::DataNode *&data) {
+    return wq.pop(data);
+  }
+  void get_data_callback(VertexBatchQueue::DataNode *data) {
+    wq.pop_callback(data);
+  }
   void set_non_block(bool block) { wq.set_non_block(block); }  // set non-blocking calls in wq
  protected:
   // parameters of the GutteringSystem, defined by the GutteringConfiguration param or config file
@@ -89,5 +95,5 @@ class GutteringSystem {
 
   const node_id_t num_nodes;
   const node_id_t leaf_gutter_size;
-  WorkQueue<update_batch> wq;
+  VertexBatchQueue wq;
 };

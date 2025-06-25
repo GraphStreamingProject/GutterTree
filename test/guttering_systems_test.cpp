@@ -9,6 +9,7 @@
 #include "standalone_gutters.h"
 #include "gutter_tree.h"
 #include "cache_guttering.h"
+#include "numa_pht.h"
 
 #define KB (1 << 10)
 #define MB (1 << 20)
@@ -20,18 +21,19 @@ static std::atomic<uint32_t> upd_processed;
 enum SystemEnum {
   GUTTREE,
   STANDALONE,
-  CACHETREE
+  CACHETREE,
+  NUMAPHT
 };
 
 // queries the buffer tree and verifies that the data
 // returned makes sense
 // Should be run in a seperate thread
 static void querier(GutteringSystem *gts, int nodes) {
-  WorkQueue<update_batch>::DataNode *data;
+  VertexBatchQueue::DataNode *data;
   while(true) {
     bool valid = gts->get_data(data);
     if (valid) {
-      std::vector<update_batch> batches = data->get_batches();
+      std::vector<update_batch> batches = data->get_data();
       for (auto batch : batches) {
         node_id_t key = batch.node_idx;
         std::vector<node_id_t> upd_vec = batch.upd_vec;
@@ -72,6 +74,9 @@ static void run_test(const int nodes, const int num_updates, const int data_work
   else if (gts_enum == CACHETREE) {
     system_str = "CacheGuttering";
     gts = new CacheGuttering(nodes, data_workers, nthreads, conf);
+  } else if (gts_enum == NUMAPHT) {
+    system_str = "NumaPHT";
+    gts = new NumaPHT(nodes, data_workers, nthreads, 1, conf);
   }
   else {
     printf("Did not recognize gts_enum!\n");
@@ -471,11 +476,11 @@ TEST(CacheGutteringTest, RelabellingOffset) {
     }
   };
   auto query_task = [&](const int j) {
-    WorkQueue<update_batch>::DataNode *data;
+    VertexBatchQueue::DataNode *data;
     while(true) {
       bool valid = gts->get_data(data);
       if (valid) {
-        std::vector<update_batch> batches = data->get_batches();
+        std::vector<update_batch> batches = data->get_data();
         for (auto batch : batches) {
           node_id_t key = batch.node_idx;
           std::vector<node_id_t> upd_vec = batch.upd_vec;

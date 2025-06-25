@@ -7,33 +7,38 @@
 #include <exception>
 #include "types.h"
 
-template<class T> // templatized by data type we're storing
+/**
+ * WorkQueue is templatized by data type we're storing.
+ * This data-type must be: 1. default constructable, 2. able to use operator=
+ * Ideally it should also have fast std::swap() performance (e.g. a std::vector just swaps
+ * metadata/pointers)
+ */
+template<class T> 
 class WorkQueue {
  public:
   class DataNode {
    private:
     // LL next pointer
     DataNode *next = nullptr;
-    std::vector<T> data_batch;
+    T data;
 
     friend class WorkQueue;
    public:
-    const std::vector<T>& get_batches() { return data_batch; }
+    const T& get_data() { return data; }
   };
 
   /**
    * Construct a work queue
-   * @param num_queue_elements   the rough number of batches to have in the queue
-   * @param data_per_elm         number of batches per queue element.
+   * @param num_queue_elements   the rough number of data elements to have in the queue
    */
-  WorkQueue(size_t num_queue_elements, size_t data_per_elm)
-      : len(num_queue_elements), batch_per_elm(data_per_elm) {
+  WorkQueue(size_t num_queue_elements)
+      : len(num_queue_elements) {
     non_block = false;
 
     // place all nodes of linked list in the producer queue and reserve
     // memory for the vectors
     for (size_t i = 0; i < len; i++) {
-      // create and reserve space for updates
+      // create and reserve space for queue elements
       DataNode *node = new DataNode();
       node->next = producer_list;  // next of node is head
       producer_list = node;        // set head to new node
@@ -59,37 +64,32 @@ class WorkQueue {
   }
 
   /**
+   * TODO: Rewrite this description
    * Initialize the queue pointers to point at actual data instead of nullptrs
    * If this function is called, IT MUST be called before performing any operations with the queue
    * The queue can also work without initializing pointers, so long as the pointers returned from
    * push being null is acceptable. (i.e. user initializes after push or does not need the returned
    * pointer)
-   * @param data_batches   a vector of data batches that will start in the queue but is swapped with
+   * @param new_data   a vector of data that will start in the queue but is swapped with
    *                       data that is pushed into the queue.
    */
-  void populate_queue(std::vector<std::vector<T>> data_batches) {
-    if (data_batches.size() != len) {
+  void populate_queue(const std::vector<T> &new_data) {
+    if (new_data.size() != len) {
       throw std::invalid_argument("WQ: Error number of initialized data batches incorrect");
     }
     DataNode *data = producer_list; // head of producer list
     for (size_t i = 0; i < len; i++) {
-      if (data_batches[i].size() != batch_per_elm) {
-        throw std::invalid_argument("WQ: Error number of data elements per batch incorrect");
-      }
-      data->data_batch = data_batches[i];
+      data->data = new_data[i];
       data = data->next;
     }
   }
 
   /**
-   * Add a data element to the queue
-   * @param upd_vec_batch  vector of graph node id the associated updates
+   * Adds a data element to the queue
+   * @param push_data   the data the user wants to add to the queue. When this function returns,
+   *                    this reference will hold the data that was in the "empty" queue node it replaced
    */
-  void push(std::vector<T> &upd_vec_batch) {
-    if (upd_vec_batch.size() > batch_per_elm) {
-      throw std::runtime_error("WQ: Too many batches in call to push " + 
-        std::to_string(upd_vec_batch.size()) + " > " + std::to_string(batch_per_elm));
-    }
+  void push(T &push_data) {
     std::unique_lock<std::mutex> lk(producer_list_lock);
     producer_condition.wait(lk, [this]{return !full();});
 
@@ -102,7 +102,7 @@ class WorkQueue {
     lk.unlock();
 
     // swap the batch vectors to perform the update
-    std::swap(node->data_batch, upd_vec_batch);
+    std::swap(node->data, push_data);
 
     // add this block to the consumer queue for processing
     consumer_list_lock.lock();
@@ -198,7 +198,6 @@ private:
   DataNode *consumer_list = nullptr; // list of nodes with data for reading
 
   const size_t len;            // number of elments in queue
-  const size_t batch_per_elm;  // number of batches per work queue element
 
   // locks and condition variables for producer list
   std::condition_variable producer_condition;
