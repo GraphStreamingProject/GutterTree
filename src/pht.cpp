@@ -1,4 +1,4 @@
-#include "cache_guttering.h"
+#include "pht.h"
 
 #include <iostream>
 #include <thread>
@@ -18,10 +18,11 @@ void PipelineHyperTree::print_r_to_l(node_id_t src) {
   std::cout << std::endl;
 }
 
-PipelineHyperTree::PipelineHyperTree(node_id_t nodes, size_t inserters,
-                                     GutteringConfiguration &conf, VertexBatchQueue &wq)
-    : inserters(inserters),
-      num_nodes(nodes),
+PipelineHyperTree::PipelineHyperTree(node_id_t num_gutters, size_t num_consumers,
+                                     size_t num_inserters, GutteringConfiguration conf)
+    : GutteringSystem(num_gutters, num_consumers, conf),
+      inserters(num_inserters),
+      num_nodes(num_gutters),
       level1_pos(std::max((int)ceil(log2(num_nodes)) - level1_bits, 0)),
       level2_pos(std::max((int)ceil(log2(num_nodes)) - level2_bits, 0)),
       level3_pos(max_level3_bufs >= num_nodes
@@ -35,11 +36,7 @@ PipelineHyperTree::PipelineHyperTree(node_id_t nodes, size_t inserters,
       num_shared_levels((level3_pos >= 0) + (level4_pos >= 0)),
       level3_gutters(num_level3_bufs == 0 ? nullptr : new SharedGutter *[num_level3_bufs]),
       level4_gutters(num_level4_bufs == 0 ? nullptr : new SharedGutter *[num_level4_bufs]),
-      leaf_gutters(new LeafGutter *[num_nodes]),
-      wq(wq),
-      wq_batch_per_elm(conf.get_wq_batch_per_elm()),
-      leaf_gutter_size(conf.get_gutter_bytes() / sizeof(node_id_t)) {
-
+      leaf_gutters(new LeafGutter *[num_nodes]) {
   // initialize storage for inserter threads
   insert_threads.reserve(inserters);
   for (uint32_t t = 0; t < inserters; t++) insert_threads.emplace_back(*this);
@@ -164,7 +161,7 @@ void PipelineHyperTree::InsertThread::flush_l1_buf(node_id_t buf_idx) {
   auto &gutter = level1_gutters[buf_idx];
   if (gutter.num_elms == 0) return;
 
-  // std::cerr << "Non-empty!" << std::endl;
+  // std::cerr << "flushing Non-empty L1!" << std::endl;
   for (size_t i = 0; i < gutter.num_elms; i++) {
     node_id_t src = gutter.data[i].first;
 
@@ -189,7 +186,7 @@ void PipelineHyperTree::InsertThread::flush_l2_buf(node_id_t buf_idx) {
   auto &l2_gutter = level2_gutters[buf_idx];
   if (l2_gutter.num_elms == 0) return;
 
-  // std::cerr << "Non-empty: " << l2_gutter.num_elms << std::endl;
+  // std::cerr << "Non-empty l2 buffer: " << l2_gutter.num_elms << std::endl;
   for (size_t i = 0; i < l2_gutter.num_elms; i++) {
     update_t upd = l2_gutter.data[i];
     node_id_t l3_idx = extract_left_bits(upd.first, CGsystem.level3_pos);
@@ -453,6 +450,10 @@ void PipelineHyperTree::InsertThread::wq_push_helper(node_id_t node_idx, LeafGut
                                                      size_t exp_size) {
   // std::cerr << "Placing LeafGutter " << leaf.index << " (" << leaf.insert_pos << ", " <<
   // leaf.capacity << ")" << std::endl;
+
+  if (leaf.insert_pos == 0) {
+    return; // don't flush empty
+  }
 
   if (leaf.insert_pos > leaf.capacity) {
     std::cerr << "ERROR: LeafGutter is too big!" << std::endl;

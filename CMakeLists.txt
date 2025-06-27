@@ -81,8 +81,8 @@ add_library(GutterTree
   include/buffer_flusher.h
   src/standalone_gutters.cpp
   include/standalone_gutters.h
-  src/cache_guttering.cpp
-  include/cache_guttering.h
+  src/pht.cpp
+  include/pht.h
   src/numa_pht.cpp
   include/numa_pht.h
   include/types.h)

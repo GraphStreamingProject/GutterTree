@@ -63,6 +63,9 @@ class WorkQueue {
     consumer_list_lock.unlock();
   }
 
+  WorkQueue(WorkQueue &) = delete;
+  WorkQueue& operator=(WorkQueue &) = delete;
+
   /**
    * TODO: Rewrite this description
    * Initialize the queue pointers to point at actual data instead of nullptrs
@@ -89,12 +92,16 @@ class WorkQueue {
    * @param push_data   the data the user wants to add to the queue. When this function returns,
    *                    this reference will hold the data that was in the "empty" queue node it replaced
    */
-  void push(T &push_data) {
+  bool push(T &push_data, bool block = true) {
     std::unique_lock<std::mutex> lk(producer_list_lock);
-    producer_condition.wait(lk, [this]{return !full();});
+    producer_condition.wait(lk, [this, block]{return !full() || !block;});
 
     // printf("WQ: Push:\n");
     // print();
+    if (full()) {
+      lk.unlock();
+      return false;
+    }
 
     // remove head from produce_list
     DataNode *node = producer_list;
@@ -110,6 +117,7 @@ class WorkQueue {
     consumer_list = node;
     consumer_list_lock.unlock();
     consumer_condition.notify_one();
+    return true;
   }
 
   /**
@@ -117,11 +125,11 @@ class WorkQueue {
    * @param data   where to place the Data
    * @return  true if we were able to get good data, false otherwise
    */
-  bool pop(DataNode *&data) {
+  bool pop(DataNode *&data, bool block = true) {
     // wait while queue is empty
     // printf("waiting to peek\n");
     std::unique_lock<std::mutex> lk(consumer_list_lock);
-    consumer_condition.wait(lk, [this]{return !empty() || non_block;});
+    consumer_condition.wait(lk, [this, block]{return !empty() || !block || non_block;});
 
     // printf("WQ: Peek\n");
     // print();

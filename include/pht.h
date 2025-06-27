@@ -12,7 +12,8 @@ constexpr int log2_constexpr(size_t num) {
   return power;
 }
 
-class PipelineHyperTree {
+
+class PipelineHyperTree : public GutteringSystem {
  private:
   const size_t inserters;
   const node_id_t num_nodes;
@@ -252,7 +253,6 @@ class PipelineHyperTree {
   friend class InsertThread;
 
   std::vector<InsertThread> insert_threads; // vector of InsertThreads
-  VertexBatchQueue &wq;
  public:
   /**
    * Constructs a new guttering systems using a tree like structure for cache efficiency.
@@ -260,8 +260,7 @@ class PipelineHyperTree {
    * @param workers     the number of workers which will be removing batches
    * @param inserters   the number of inserter buffers
    */
-  PipelineHyperTree(node_id_t nodes, size_t inserters, GutteringConfiguration &conf,
-                    VertexBatchQueue &wq);
+  PipelineHyperTree(node_id_t num_gutters, size_t num_consumers, size_t num_inserters, GutteringConfiguration conf);
 
   ~PipelineHyperTree();
 
@@ -313,59 +312,4 @@ class PipelineHyperTree {
    */
   void print_r_to_l(node_id_t src);
   void print_fanouts();
-
-  // number of batches per work queue element
-  const size_t wq_batch_per_elm;
-  const size_t leaf_gutter_size;
-};
-
-// The CacheGuttering class adds the GutteringSystem base class to the PipelineHyperTree
-class CacheGuttering : public GutteringSystem {
- private:
-  PipelineHyperTree pht;
- public:
-  CacheGuttering(node_id_t nodes, size_t workers, size_t inserters, GutteringConfiguration conf)
-      : GutteringSystem(nodes, workers, conf), pht(nodes, inserters, conf, wq){};
-
-
-  /**
-   * Puts an update into the data structure.
-   * @param upd the edge update.
-   * @param which, which thread is inserting this update
-   * @return nothing.
-   */
-  insert_ret_t insert(const update_t &upd, size_t which) override { 
-    pht.insert(upd, which);
-  }
-
-  insert_ret_t batch_insert(const update_t *batch, size_t num_updates, size_t which) override {
-    pht.batch_insert(batch, num_updates, which);
-  }
-
-  insert_ret_t process_stream_upd_batch(const GraphStreamUpdate *batch, size_t num_updates,
-                                        size_t which) override {
-    pht.process_stream_upd_batch(batch, num_updates, which);
-  }
-
-  // pure virtual functions don't like default params, so default to 'which' of 0
-  insert_ret_t insert(const update_t &upd) { pht.insert(upd); }
-
-  /**
-   * Flushes all pending buffers. When this function returns there are no more updates in the
-   * guttering system
-   * @return nothing.
-   */
-  flush_ret_t force_flush() {
-    pht.force_flush();
-  }
-
-  /**
-   * Set the "offset" for incoming edges. That is, if we set an offset of x, an incoming edge
-   * {i,j} will be stored internally as an edge {i - x, j}. Use only for integration with
-   * distributed guttering. If you don't know what that means, don't use this function!
-   * 
-   * @param offset 
-   * @return a reference to the parent PipelineHyperTree object.
-   */
-  void set_offset(node_id_t offset) { pht.set_offset(offset); }
 };

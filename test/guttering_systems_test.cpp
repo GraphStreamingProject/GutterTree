@@ -8,7 +8,7 @@
 
 #include "standalone_gutters.h"
 #include "gutter_tree.h"
-#include "cache_guttering.h"
+#include "pht.h"
 #include "numa_pht.h"
 
 #define KB (1 << 10)
@@ -21,7 +21,7 @@ static std::atomic<uint32_t> upd_processed;
 enum SystemEnum {
   GUTTREE,
   STANDALONE,
-  CACHETREE,
+  PHT,
   NUMAPHT
 };
 
@@ -52,7 +52,8 @@ static void querier(GutteringSystem *gts, int nodes) {
 }
 
 class GuttersTest : public testing::TestWithParam<SystemEnum> {};
-INSTANTIATE_TEST_SUITE_P(GutteringTestSuite, GuttersTest, testing::Values(GUTTREE, STANDALONE, CACHETREE));
+INSTANTIATE_TEST_SUITE_P(GutteringTestSuite, GuttersTest,
+                         testing::Values(GUTTREE, STANDALONE, PHT, NUMAPHT));
 
 // helper function to run a basic test of the buffer tree with
 // various parameters
@@ -60,7 +61,8 @@ INSTANTIATE_TEST_SUITE_P(GutteringTestSuite, GuttersTest, testing::Values(GUTTRE
 // and no work is claimed off of the work queue
 // to work correctly num_updates must be a multiple of nodes
 static void run_test(const int nodes, const int num_updates, const int data_workers,
- const SystemEnum gts_enum, const GutteringConfiguration &conf, const int nthreads=1) {
+                     const SystemEnum gts_enum, const GutteringConfiguration &conf,
+                     const int nthreads = 1, const int ntrees = 1) {
   GutteringSystem *gts;
   std::string system_str;
   if (gts_enum == GUTTREE) {
@@ -71,12 +73,13 @@ static void run_test(const int nodes, const int num_updates, const int data_work
     system_str = "StandAloneGutters";
     gts = new StandAloneGutters(nodes, data_workers, nthreads, conf);
   }
-  else if (gts_enum == CACHETREE) {
-    system_str = "CacheGuttering";
-    gts = new CacheGuttering(nodes, data_workers, nthreads, conf);
-  } else if (gts_enum == NUMAPHT) {
+  else if (gts_enum == PHT) {
+    system_str = "PipelineHyperTree";
+    gts = new PipelineHyperTree(nodes, data_workers, nthreads, conf);
+  } 
+  else if (gts_enum == NUMAPHT) {
     system_str = "NumaPHT";
-    gts = new NumaPHT(nodes, data_workers, nthreads, 1, conf);
+    gts = new NumaPHT(nodes, data_workers, nthreads, ntrees, conf);
   }
   else {
     printf("Did not recognize gts_enum!\n");
@@ -105,6 +108,10 @@ static void run_test(const int nodes, const int num_updates, const int data_work
       upd.first = i % nodes;
       upd.second = (nodes - 1) - (i % nodes);
       gts->insert(upd, j);
+
+      if (i % 100000 == 0) {
+        std::cout << j << ": " << i << std::endl;
+      }
     }
   };
 
@@ -166,19 +173,6 @@ TEST_P(GuttersTest, ManyInserts) {
   run_test(nodes, num_updates, data_workers, GetParam(), conf);
 }
 
-TEST(GuttersTest, ManyInsertsParallel) {
-  const int nodes = 32;
-  const int num_updates = 1000000;
-  const int data_workers = 4;
-
-  // Guttering System configuration
-  auto conf = GutteringConfiguration()
-              .buffer_exp(20)
-              .fanout(2);
-
-  run_test(nodes, num_updates, data_workers, STANDALONE, conf, 10);
-}
-
 TEST_P(GuttersTest, TinyGutters) {
   const int nodes = 128;
   const int num_updates = 40000;
@@ -214,9 +208,13 @@ TEST_P(GuttersTest, FlushAndInsertAgain) {
     system_str = "StandAloneGutters";
     gts = new StandAloneGutters(nodes, data_workers, 1, conf);
   }
-  else if (gts_enum == CACHETREE) {
-    system_str = "CacheGuttering";
-    gts = new CacheGuttering(nodes, data_workers, 1, conf);
+  else if (gts_enum == PHT) {
+    system_str = "PipelineHyperTree";
+    gts = new PipelineHyperTree(nodes, data_workers, 1, conf);
+  }
+  else if (gts_enum == NUMAPHT) {
+    system_str = "NumaPHT";
+    gts = new NumaPHT(nodes, data_workers, 1, 1, conf);
   }
   else {
     printf("Did not recognize gts_enum!\n");
@@ -277,9 +275,13 @@ TEST_P(GuttersTest, GetDataBatched) {
     system_str = "StandAloneGutters";
     gts = new StandAloneGutters(nodes, data_workers, 1, conf);
   }
-  else if (gts_enum == CACHETREE) {
-    system_str = "CacheGuttering";
-    gts = new CacheGuttering(nodes, data_workers, 1, conf);
+  else if (gts_enum == PHT) {
+    system_str = "PipelineHyperTree";
+    gts = new PipelineHyperTree(nodes, data_workers, 1, conf);
+  }
+  else if (gts_enum == NUMAPHT) {
+    system_str = "NumaPHT";
+    gts = new NumaPHT(nodes, data_workers, 1, 1, conf);
   }
   else {
     printf("Did not recognize gts_enum!\n");
@@ -402,7 +404,6 @@ TEST(GutterTreeTests, ParallelInsert) {
   delete gt;
 }
 
-
 TEST(StandaloneTest, ParallelInserts) {
   const int nodes = 32;
   const int num_updates = 1000000;
@@ -414,7 +415,7 @@ TEST(StandaloneTest, ParallelInserts) {
   run_test(nodes, num_updates, data_workers, STANDALONE, conf, nthreads);
 }
 
-TEST(CacheGutteringTest, ParallelInserts) {
+TEST(PipelineHyperTreeTest, ParallelInserts) {
   const int nodes = 32;
   const int num_updates = 5000000;
   const int data_workers = 4;
@@ -422,20 +423,20 @@ TEST(CacheGutteringTest, ParallelInserts) {
 
   GutteringConfiguration conf;
 
-  run_test(nodes, num_updates, data_workers, CACHETREE, conf, nthreads);
+  run_test(nodes, num_updates, data_workers, PHT, conf, nthreads);
 }
 
-TEST(CacheGutteringTest, ManyVertices) {
+TEST(PipelineHyperTreeTest, ManyVertices) {
   const size_t vertices     = 1 << 20;
   const size_t num_updates  = 10000000;
   const size_t data_workers = 4;
   const size_t nthreads     = 10;
 
   GutteringConfiguration conf;
-  run_test(vertices, num_updates, data_workers, CACHETREE, conf, nthreads);
+  run_test(vertices, num_updates, data_workers, PHT, conf, nthreads);
 }
 
-TEST(CacheGutteringTest, RelabellingOffset) {
+TEST(PipelineHyperTreeTest, RelabellingOffset) {
   const int nodes = 1024;
   const int relabelling_offset = 1024;
   const int num_updates = 5000000;
@@ -450,10 +451,10 @@ TEST(CacheGutteringTest, RelabellingOffset) {
   // this test only works if the depth of the tree does not exceed 1
   // and no work is claimed off of the work queue
   // to work correctly num_updates must be a multiple of nodes
-  auto gts = new CacheGuttering(nodes, data_workers, nthreads, conf);
+  auto gts = new PipelineHyperTree(nodes, data_workers, nthreads, conf);
   gts->set_offset(relabelling_offset);
   printf("Running Test: system=%s, nodes=%i, num_updates=%i\n",
-    "CacheGuttering", nodes, num_updates);
+    "PipelineHyperTree", nodes, num_updates);
 
   shutdown = false;
   upd_processed = 0;
@@ -531,4 +532,16 @@ TEST(CacheGutteringTest, RelabellingOffset) {
   ASSERT_EQ(catted_recorded, catted_retrieved);
 
   delete gts;
+}
+
+TEST(NumaPHTTest, MultiTree) {
+  const int nodes = 64;
+  const int num_updates = 5000000;
+  const int data_workers = 1;
+  const int nthreads = 2;
+  const int ntrees = 2;
+
+  GutteringConfiguration conf;
+
+  run_test(nodes, num_updates, data_workers, NUMAPHT, conf, nthreads, ntrees);
 }

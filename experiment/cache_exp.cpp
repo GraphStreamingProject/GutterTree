@@ -3,7 +3,7 @@
 #include <chrono>
 #include <atomic>
 #include <fstream>
-#include "../include/cache_guttering.h"
+#include "../include/pht.h"
 
 static bool shutdown = false;
 static constexpr uint32_t prime = 100000007;
@@ -52,7 +52,7 @@ static void run_randomized(const int nodes, const unsigned long updates, const u
               .gutter_bytes(gutter_size)
               .wq_batch_per_elm(wq_batch);
 
-  CacheGuttering *gutters = new CacheGuttering(nodes, num_workers, nthreads, conf);
+  PipelineHyperTree *gutters = new PipelineHyperTree(nodes, num_workers, nthreads, conf);
 
   // create queriers
 #ifndef EARLY_EXIT
@@ -130,7 +130,7 @@ static void run_test(const int nodes, const unsigned long updates, const unsigne
               .num_flushers(2)
               .gutter_bytes(32 * 1024)
               .wq_batch_per_elm(8);
-  CacheGuttering *gutters = new CacheGuttering(nodes, num_workers, nthreads, conf);
+  PipelineHyperTree *gutters = new PipelineHyperTree(nodes, num_workers, nthreads, conf);
 
   // create queriers
 #ifndef EARLY_EXIT
